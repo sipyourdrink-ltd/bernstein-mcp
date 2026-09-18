@@ -1,0 +1,1 @@
+{"session_id":"cc-sess-1","transcript_path":"/Users/x/.claude/projects/p/t.jsonl","cwd":"/work/demo","permission_mode":"default","hook_event_name":"PostToolUseFailure","tool_name":"Bash","tool_input":{"command":"npm test"},"tool_use_id":"toolu_01D","error":"Command exited with 1","is_interrupt":false}
