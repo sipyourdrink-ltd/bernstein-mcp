@@ -7,7 +7,7 @@ import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES } from "./limits.js";
 import { explainReceipt } from "./verify/explain.js";
 import { fromParsed, type JsonValue } from "./verify/pyjson.js";
 import { verifyReceiptBounded } from "./verify/bounded.js";
-import { CHECK_ORDER, parseChainText, verifyChain, type ChainVerification } from "./verify/receipt.js";
+import { CHECK_ORDER, parseChainText, producerFamily, verifyChain, type ChainVerification } from "./verify/receipt.js";
 import { KEYS_PATH, signVerdict, VERIFIER_URL, type Signer } from "./verify/attest.js";
 
 export const BERNSTEIN_VERSION = bernsteinTagRaw.trim();
@@ -20,6 +20,7 @@ const ADAPTERS = adaptersJson.adapters as { name: string; binary: string; module
 export interface RequestTrace {
   tool?: string;
   verdict?: string;
+  producer?: "bernstein" | "bernstein-attest" | "other";
 }
 
 export interface ServerOptions {
@@ -126,6 +127,8 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
             spine_entries: z.number().int(),
             audit_events: z.number().int().nullable(),
             key_id: z.string(),
+            producer: z.string().nullable(),
+            tool_calls: z.number().int().nullable(),
           })
           .nullable(),
         verify_url: z.string().nullable(),
@@ -143,7 +146,10 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
     },
     async ({ receipt }) => {
       const v = await verifyReceiptBounded(receipt);
-      if (opts.trace) opts.trace.verdict = v.verdict;
+      if (opts.trace) {
+        opts.trace.verdict = v.verdict;
+        if (v.summary) opts.trace.producer = producerFamily(v.summary.producer);
+      }
       const lossy = v.input_form === "object" && v.verdict === "invalid" && v.failing_check !== "signature";
       const signed = opts.signer ? await signVerdict(v, opts.signer, BERNSTEIN_VERSION) : null;
       return reply({
@@ -180,7 +186,10 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
     },
     async ({ receipt }) => {
       const v = await verifyReceiptBounded(receipt);
-      if (opts.trace) opts.trace.verdict = v.verdict;
+      if (opts.trace) {
+        opts.trace.verdict = v.verdict;
+        if (v.summary) opts.trace.producer = producerFamily(v.summary.producer);
+      }
       return reply({ verdict: v.verdict, explanation: explainReceipt(v), receipt_sha256: v.receipt_sha256 });
     },
   );

@@ -2,6 +2,41 @@ import { describe, expect, it, vi } from "vitest";
 import worker, { type Env } from "../src/index.js";
 import { MAX_BODY_BYTES } from "../src/limits.js";
 import { receiptString } from "./helpers.js";
+import { buildReceipt } from "../cli/receipt.js";
+import { importKey } from "../cli/keys.js";
+import { GENESIS, hashRow, type RowInput } from "../cli/rows.js";
+import { TEST_JWK } from "./cli/fixtures/test-key.js";
+
+/**
+ * A session receipt built the way `cli/receipt.ts` writes one, so the
+ * request-log test below exercises the same `producer` block a real
+ * `bernstein-attest` run leaves behind. Task 11 replaces this with the
+ * frozen `vectors/session/session-valid.json` vector.
+ */
+async function sessionReceiptText(): Promise<string> {
+  let head = GENESIS;
+  const rows: RowInput[] = [];
+  const inputs: RowInput[] = [
+    { event: "session_started", agent: "claude-code", producer: "bernstein-attest 0.2.0", project: "demo", cwd_sha256: "c".repeat(64), ts: 1 },
+    { event: "tool_call", tool: "Write", tool_use_id: "toolu_1", input_sha256: "a".repeat(64), output_sha256: "b".repeat(64), ok: true, path: "src/x.ts", ts: 2 },
+    { event: "turn_ended", turn: 1, last_message_sha256: "d".repeat(64), ts: 3 },
+  ];
+  for (const input of inputs) {
+    const r = hashRow(input, head);
+    rows.push(r.row);
+    head = r.head;
+  }
+  const sealed = await buildReceipt({
+    runId: "sess-log-1",
+    rows,
+    files: [{ path: "src/x.ts", stepId: "toolu_1", contentSha256: "e".repeat(64) }],
+    agent: "claude-code",
+    model: "unknown",
+    key: await importKey(TEST_JWK),
+    now: 4,
+  });
+  return sealed.text;
+}
 
 const env = {} as Env;
 const ctx = {
@@ -234,6 +269,30 @@ describe("request log line", () => {
         expect(JSON.stringify(l)).not.toContain("203.0.113.9");
         expect(JSON.stringify(l)).not.toContain("run_id");
       }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("logs the producer family of a verified receipt, never the raw label", async () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((line: string) => void lines.push(String(line)));
+    try {
+      const sessionReceipt = await sessionReceiptText();
+      const res = await worker.fetch(
+        new Request("https://mcp.bernstein.run/verify", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: "receipt=" + encodeURIComponent(sessionReceipt),
+        }),
+        env,
+        ctx,
+      );
+      expect(res.status).toBe(200);
+      const logs = lines.map((l) => JSON.parse(l) as Record<string, unknown>).filter((l) => l.evt === "mcp.request");
+      const line = logs.find((l) => l.route === "/verify" && l.method === "POST");
+      expect(line?.producer).toBe("bernstein-attest");
+      expect(JSON.stringify(line)).not.toContain("0.2.0");
     } finally {
       spy.mockRestore();
     }

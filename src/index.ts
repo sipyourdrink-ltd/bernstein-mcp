@@ -3,6 +3,7 @@ import { createServer, BERNSTEIN_VERSION, type RequestTrace } from "./mcp.js";
 import { renderHome } from "./pages/home.js";
 import { base64UrlDecode, renderVerdict, renderVerifyForm, verdictJson } from "./pages/verify.js";
 import { verifyReceiptBounded } from "./verify/bounded.js";
+import { producerFamily } from "./verify/receipt.js";
 import { KEYS_PATH, loadSigner, signVerdict, type Signer } from "./verify/attest.js";
 import frauncesLatin from "../fonts/fraunces-latin.woff2";
 import frauncesLatinItalic from "../fonts/fraunces-latin-italic.woff2";
@@ -143,6 +144,7 @@ async function handleMcpPost(request: Request, signer: Signer | null, log: Reque
       parsedBody: parsed.value,
     });
     if (trace.verdict) log.verdict = trace.verdict;
+    if (trace.producer) log.producer = trace.producer;
     return withStandardHeaders(response);
   } catch {
     // Never leak a stack trace: any unexpected failure becomes a JSON-RPC
@@ -219,6 +221,7 @@ async function handleVerifyPost(request: Request, signer: Signer | null, log: Re
   }
   const v = await verifyReceiptBounded(got.receipt);
   log.verdict = v.verdict;
+  if (v.summary) log.producer = producerFamily(v.summary.producer);
   const signed = signer ? await signVerdict(v, signer, BERNSTEIN_VERSION) : null;
   if (wantsJson(request)) return jsonResponse(verdictJson(v, signed), 200);
   return html(renderVerdict(got.receipt, v, { signed }));
@@ -268,6 +271,7 @@ export interface RequestLog {
   rpc?: string;
   tool?: string;
   verdict?: string;
+  producer?: "bernstein" | "bernstein-attest" | "other";
   client?: string;
   client_version?: string;
   protocol?: string;

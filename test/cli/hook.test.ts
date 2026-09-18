@@ -8,6 +8,7 @@ import { normalise } from "../../cli/payload.js";
 import { markdownBlock, verifyUrl } from "../../cli/link.js";
 import { keyPath, receiptsDir, SEGMENT_ROWS } from "../../cli/paths.js";
 import { readMeta, readRows } from "../../cli/store.js";
+import { PRODUCER_VERSION } from "../../cli/version.js";
 import { verifyReceipt } from "../../src/verify/receipt.js";
 import { TEST_JWK } from "./fixtures/test-key.js";
 
@@ -100,6 +101,10 @@ describe("handleHook end to end", () => {
     expect(existsSync(join(receiptsDir(), "cc-sess-1.json"))).toBe(true);
     const v = await verifyReceipt(readFileSync(file, "utf8"));
     expect(v.verdict).toBe("valid");
+    expect(v.summary?.producer).toBe(`bernstein-attest ${PRODUCER_VERSION} (claude-code)`);
+    expect(v.summary?.tool_calls).toBe(4);
+    const { explainReceipt } = await import("../../src/verify/explain.js");
+    expect(explainReceipt(v)).toContain(`Session receipt from Claude Code, written by bernstein-attest ${PRODUCER_VERSION}: 4 tool calls, 1 file touched.`);
     expect(v.summary?.spine_entries).toBe(1);
     expect(meta.sealed_index).toBe(5);
     // A second Stop with nothing new: no reseal, no message.

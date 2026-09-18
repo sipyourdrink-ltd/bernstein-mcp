@@ -51,6 +51,28 @@ export interface ReceiptSummary {
   spine_entries: number;
   audit_events: number | null;
   key_id: string;
+  /** "bernstein-attest 0.2.0 (claude-code)" | "bernstein 4.0.0" | null when the receipt carries no producer block. */
+  producer: string | null;
+  /** Count of journal events with event === "tool_call"; null when there are none. */
+  tool_calls: number | null;
+}
+
+/** `producer.name` (+ version, + agent) off the receipt's top-level `producer` block; null when absent or unnamed. */
+export function producerLabel(receipt: JsonObject): string | null {
+  const p = receipt["producer"];
+  if (!p || typeof p !== "object" || Array.isArray(p)) return null;
+  const name = (p as JsonObject)["name"];
+  if (typeof name !== "string" || !name) return null;
+  const version = (p as JsonObject)["version"];
+  const agent = (p as JsonObject)["agent"];
+  return name + (typeof version === "string" ? ` ${version}` : "") + (typeof agent === "string" ? ` (${agent})` : "");
+}
+
+/** Which family a producer label belongs to, read from its prefix only. */
+export function producerFamily(label: string | null): "bernstein" | "bernstein-attest" | "other" {
+  if (label?.startsWith("bernstein-attest")) return "bernstein-attest";
+  if (label?.startsWith("bernstein")) return "bernstein";
+  return "other";
 }
 
 export interface ReceiptVerification {
@@ -375,6 +397,11 @@ export async function verifyReceipt(input: string | unknown): Promise<ReceiptVer
       spine_entries: entries.length,
       audit_events: auditEvents ? auditEvents.length : null,
       key_id: keyId,
+      producer: producerLabel(receipt),
+      tool_calls: (() => {
+        const n = events.filter((e) => e && typeof e === "object" && (e as JsonObject)["event"] === "tool_call").length;
+        return n > 0 ? n : null;
+      })(),
     },
   });
 }

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import worker, { type Env } from "../src/index.js";
 import { KEYS_PATH, VERDICT_PAYLOAD_TYPE, VERDICT_STATEMENT_TYPE, jwkThumbprint, loadSigner, signVerdict } from "../src/verify/attest.js";
-import { pae, verifyReceipt } from "../src/verify/receipt.js";
+import { pae, producerFamily, producerLabel, verifyReceipt } from "../src/verify/receipt.js";
 import { receiptString } from "./helpers.js";
 
 const ctx = { waitUntil: () => undefined, passThroughOnException: () => undefined } as unknown as ExecutionContext;
@@ -105,5 +105,18 @@ describe("signed verdicts", () => {
     const body = (await res.json()) as any;
     expect(body.verdict).toBe("valid");
     expect(body.signed_verdict).toBeNull();
+  });
+});
+
+describe("producer", () => {
+  it("labels the producer block and classifies it", () => {
+    expect(producerLabel({ producer: { name: "bernstein-attest", version: "0.2.0", agent: "claude-code" } } as any)).toBe("bernstein-attest 0.2.0 (claude-code)");
+    expect(producerLabel({ producer: { name: "bernstein", version: "4.0.0" } } as any)).toBe("bernstein 4.0.0");
+    expect(producerLabel({ producer: { name: 7 } } as any)).toBeNull();
+    expect(producerLabel({} as any)).toBeNull();
+    expect(producerFamily("bernstein-attest 0.2.0 (codex)")).toBe("bernstein-attest");
+    expect(producerFamily("bernstein 4.0.0")).toBe("bernstein");
+    expect(producerFamily("someone-else 1.0")).toBe("other");
+    expect(producerFamily(null)).toBe("other");
   });
 });
