@@ -103,6 +103,9 @@ describe("handleHook end to end", () => {
     const stop = await handleHook("claude-code", inProject(fx("cc-stop")), { now });
     const msg = JSON.parse(stop.stdout);
     expect(msg.systemMessage).toMatch(/^Session receipt sealed: 4 tool calls, 1 file\. File: \.bernstein\/receipts\/cc-sess-1\.json\. Verify: https:\/\/mcp\.bernstein\.run\/verify\/[0-9a-f]{64}/);
+    // Later turns reseal the file, so the agent is told to refresh the link before committing it.
+    expect(msg.systemMessage.endsWith(". The link names the file as sealed at the end of this turn; right before you commit it or open a PR, run `npx bernstein-attest link` for the current one.")).toBe(true);
+    expect(msg.systemMessage).not.toContain("If you open a PR");
     const meta = readMeta("claude-code", "cc-sess-1")!;
     const rows = readRows(meta);
     expect(rows.map((r) => r.event)).toEqual(["session_started", "tool_call", "tool_call", "tool_call", "tool_call", "turn_ended"]);

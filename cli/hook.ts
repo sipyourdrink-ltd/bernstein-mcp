@@ -159,7 +159,7 @@ async function onStop(agent: Agent, ev: Extract<HookEvent, { kind: "stop" }>, no
       const filesKey = Object.keys(meta.files).sort().join("\n");
       if (t - meta.last_notice_ts >= NOTICE_INTERVAL_S || filesKey !== meta.last_notice_files) {
         const n = meta.last_receipt_tool_calls; const m = meta.last_receipt_files;
-        out = JSON.stringify({ systemMessage: `Session receipt sealed: ${n} tool call${n === 1 ? "" : "s"}, ${m} file${m === 1 ? "" : "s"}. File: .bernstein/receipts/${done.runId}.json. Verify: ${meta.last_verify_url}. If you open a PR, commit the file and put the link in the description.` }) + "\n";
+        out = JSON.stringify({ systemMessage: `Session receipt sealed: ${n} tool call${n === 1 ? "" : "s"}, ${m} file${m === 1 ? "" : "s"}. File: .bernstein/receipts/${done.runId}.json. Verify: ${meta.last_verify_url}. The link names the file as sealed at the end of this turn; right before you commit it or open a PR, run \`npx bernstein-attest link\` for the current one.` }) + "\n";
         meta.last_notice_ts = t; meta.last_notice_files = filesKey;
       }
     }
