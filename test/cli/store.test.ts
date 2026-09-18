@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { keyPath, sessionDir, SEGMENT_ROWS, statePath } from "../../cli/paths.js";
@@ -53,5 +53,23 @@ describe("store", () => {
     expect(journalPath(meta)).not.toBe(first);
     expect(existsSync(first)).toBe(true);
     expect(readRows(meta)).toHaveLength(1);
+  });
+
+  it("fills defaults for fields an older meta file lacks", () => {
+    const meta = newMeta({ agent: "claude-code", session_id: "old", project_root: "/p", project: "p", model: "m" });
+    meta.last_run_id = "old";
+    meta.last_verify_url = "https://mcp.bernstein.run/verify/x";
+    writeMeta(meta);
+    const path = join(sessionDir("claude-code"), "old.meta.json");
+    const raw = JSON.parse(readFileSync(path, "utf8"));
+    delete raw.last_receipt_tool_calls;
+    delete raw.last_receipt_files;
+    writeFileSync(path, JSON.stringify(raw));
+    const read = readMeta("claude-code", "old");
+    expect(read?.last_receipt_tool_calls).toBe(0);
+    expect(read?.last_receipt_files).toBe(0);
+    expect(read?.last_run_id).toBe("old");
+    expect(read?.last_verify_url).toBe("https://mcp.bernstein.run/verify/x");
+    expect(read?.project_root).toBe("/p");
   });
 });

@@ -30,8 +30,17 @@ const metaPath = (agent: string, sessionId: string) => join(sessionDir(agent), `
 export const journalPath = (meta: Meta) => join(sessionDir(meta.agent), `${meta.session_id}.s${meta.segment}.jsonl`);
 export const runId = (meta: Meta) => (meta.segment === 1 ? meta.session_id : `${meta.session_id}-s${meta.segment}`);
 
+// A meta file can predate a field added to Meta later (e.g. last_receipt_tool_calls);
+// spreading the parse over newMeta's defaults fills anything the file lacks instead of
+// leaving it undefined, so an older session doesn't turn into "undefined tool calls".
 export function readMeta(agent: string, sessionId: string): Meta | null {
-  try { return JSON.parse(readFileSync(metaPath(agent, sessionId), "utf8")) as Meta; } catch { return null; }
+  let parsed: Partial<Meta>;
+  try { parsed = JSON.parse(readFileSync(metaPath(agent, sessionId), "utf8")) as Partial<Meta>; } catch { return null; }
+  const defaults = newMeta({
+    agent: parsed.agent as Meta["agent"], session_id: parsed.session_id as string, project_root: parsed.project_root as string,
+    project: parsed.project as string, model: parsed.model as string, agent_version: parsed.agent_version,
+  });
+  return { ...defaults, ...parsed };
 }
 
 export function writeMeta(meta: Meta): void {
