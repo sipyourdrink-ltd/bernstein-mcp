@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 export function vectorText(name: string): string {
@@ -25,4 +25,25 @@ export function receiptString(name: string): string {
     }
   }
   throw new Error("input block not found");
+}
+
+/** One delegation-link corpus vector (vectors/trace/delegation-link/<name>.json), parsed. */
+export function traceVector(name: string): {
+  id: string;
+  name: string;
+  context: Record<string, unknown>;
+  records: Record<string, unknown>[];
+  expected: { classification: string; codes: string[] };
+} {
+  return JSON.parse(readFileSync(join(process.cwd(), "vectors", "trace", "delegation-link", `${name}.json`), "utf-8"));
+}
+
+export const TRACE_VECTOR_NAMES = readdirSync(join(process.cwd(), "vectors", "trace", "delegation-link"))
+  .filter((f) => f.endsWith(".json"))
+  .map((f) => f.slice(0, -".json".length))
+  .sort();
+
+/** A bernstein-emitted Trust Record fixture, as the exact text the emitter wrote. */
+export function bernsteinRecordText(name: string): string {
+  return readFileSync(join(process.cwd(), "vectors", "trace", "bernstein", `${name}-trust-record.json`), "utf-8");
 }

@@ -8,6 +8,9 @@ export const MAX_BODY_BYTES = 1_048_576; // 1 MiB
 /** Hard cap on receipt/chain rows the verifier walks. */
 export const MAX_CHAIN_ENTRIES = 2_000;
 
+/** Hard cap on Trust Records one delegation-chain call walks. */
+export const MAX_TRACE_RECORDS = 64;
+
 /** Max JSON nesting depth accepted on any request body. */
 export const MAX_JSON_DEPTH = 32;
 
