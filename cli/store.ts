@@ -1,7 +1,9 @@
 // The journal is an append-only JSONL per segment; meta.json is the head
 // pointer so a hook never re-reads the log. Both are rewritten atomically
-// (tmp + rename) except the log, which is append + fsync.
-import { appendFileSync, closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+// (tmp + rename) except the log, which is append + fsync. Hook processes of
+// one session run under withSessionLock so the read-head/append/write-head
+// sequence of one never interleaves with another's.
+import { appendFileSync, closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logPath, sessionDir } from "./paths.js";
 import { GENESIS, hashRow, type ChainHead, type RowInput } from "./rows.js";
@@ -77,6 +79,37 @@ export function rollSegment(meta: Meta, prevReceiptSha256: string, ts: number): 
   meta.files = {};
   meta.prev_receipt_sha256 = prevReceiptSha256;
   return appendRow(meta, { event: "segment_started", segment: meta.segment, prev_receipt_sha256: prevReceiptSha256, ts });
+}
+
+const LOCK_STALE_MS = 10_000;
+const LOCK_SLICE_MS = 2;
+const LOCK_BUDGET_MS = 3_000;
+const sleeper = new Int32Array(new SharedArrayBuffer(4));
+export const sessionLockPath = (agent: string, sessionId: string) => join(sessionDir(agent), `${sessionId}.lock`);
+
+/**
+ * Runs fn while holding the session's lock directory. mkdir is atomic, so EEXIST
+ * means another hook process holds it: wait in 2 ms slices (a blocking
+ * Atomics.wait, not a timer) and retry until the budget runs out. A lock older
+ * than ten seconds belongs to a hook that died holding it and is broken.
+ */
+export async function withSessionLock<T>(agent: string, sessionId: string, fn: () => Promise<T>, budgetMs = LOCK_BUDGET_MS): Promise<T> {
+  const lock = sessionLockPath(agent, sessionId);
+  mkdirSync(sessionDir(agent), { recursive: true, mode: 0o700 });
+  const deadline = Date.now() + budgetMs;
+  for (;;) {
+    try { mkdirSync(lock, { mode: 0o700 }); break; }
+    catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      let stale = false;
+      try { stale = Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS; } catch { continue; }   // released between attempts
+      if (stale) { rmSync(lock, { recursive: true, force: true }); continue; }
+      if (Date.now() >= deadline) throw new Error(`session lock timeout: ${lock}`);
+      Atomics.wait(sleeper, 0, 0, LOCK_SLICE_MS);
+    }
+  }
+  try { return await fn(); }
+  finally { rmSync(lock, { recursive: true, force: true }); }
 }
 
 export function logError(err: unknown): void {

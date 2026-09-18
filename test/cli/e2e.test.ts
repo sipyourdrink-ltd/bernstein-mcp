@@ -1,9 +1,10 @@
 /// <reference types="node" />
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { verifyReceipt } from "../../src/verify/receipt.js";
 import { TEST_JWK } from "./fixtures/test-key.js";
 
 const BUNDLE = join(process.cwd(), "cli", "dist", "attest.js");
@@ -57,6 +58,35 @@ describe("bundle", () => {
     expect(r.stdout).toContain('"PostToolUse"');
     expect(existsSync(join(project, ".claude", "settings.json"))).toBe(false);
   });
+  it("eight concurrent hook processes of one session leave one unbroken chain", async () => {
+    const home2 = mkdtempSync(join(tmpdir(), "attest-home-"));
+    const project2 = mkdtempSync(join(tmpdir(), "attest-proj-"));
+    mkdirSync(join(home2, ".config", "bernstein-attest"), { recursive: true });
+    writeFileSync(join(home2, ".config", "bernstein-attest", "key.jwk"), JSON.stringify(TEST_JWK));
+    const env = { ...process.env, BERNSTEIN_ATTEST_HOME: home2, CLAUDE_PROJECT_DIR: project2 };
+    const hook = (input: string) => new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+      const child = execFile("node", [BUNDLE, "hook", "--agent", "claude-code"], { env, encoding: "utf8" }, (err, stdout, stderr) => (err ? reject(err) : resolve({ stdout, stderr })));
+      child.stdin!.end(input);
+    });
+    try {
+      const base = JSON.parse(fx("cc-posttooluse-bash").replaceAll("/work/demo", project2));
+      const results = await Promise.all(Array.from({ length: 8 }, (_, i) => hook(JSON.stringify({ ...base, tool_use_id: `par-${i}` }))));
+      for (const r of results) expect(r).toEqual({ stdout: "", stderr: "" });
+      const stop = await hook(fx("cc-stop").replaceAll("/work/demo", project2));
+      expect(stop.stderr).toBe("");
+      const file = join(project2, ".bernstein", "receipts", "cc-sess-1.json");
+      const v = await verifyReceipt(readFileSync(file, "utf8"));
+      expect(v.verdict).toBe("valid");
+      expect(v.summary?.tool_calls).toBe(8);
+      const events = JSON.parse(readFileSync(file, "utf8")).journal.events as { index: number }[];
+      expect(events.map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      const log = join(home2, ".local", "state", "bernstein-attest", "attest.log");
+      expect(existsSync(log) ? readFileSync(log, "utf8") : "").toBe("");
+    } finally {
+      rmSync(home2, { recursive: true, force: true });
+      rmSync(project2, { recursive: true, force: true });
+    }
+  }, 30_000);
   it("a hook round trip stays under 250 ms wall clock", () => {
     const write = fx("cc-posttooluse-bash").replaceAll("/work/demo", project);
     const t0 = performance.now();

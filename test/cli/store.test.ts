@@ -1,10 +1,11 @@
 /// <reference types="node" />
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { keyPath, sessionDir, SEGMENT_ROWS, statePath } from "../../cli/paths.js";
-import { appendRow, journalPath, newMeta, readMeta, readRows, rollSegment, runId, writeMeta } from "../../cli/store.js";
+import { appendRow, journalPath, newMeta, readMeta, readRows, rollSegment, runId, sessionLockPath, withSessionLock, writeMeta } from "../../cli/store.js";
 import { walkJournal } from "../../src/verify/chains.js";
 import { toJsonObject } from "../../cli/rows.js";
 
@@ -77,5 +78,51 @@ describe("store", () => {
     mkdirSync(sessionDir("claude-code"), { recursive: true });
     writeFileSync(join(sessionDir("claude-code"), "null-meta.meta.json"), "null");
     expect(readMeta("claude-code", "null-meta")).toBeNull();
+  });
+});
+
+describe("withSessionLock", () => {
+  // The wait is a blocking Atomics.wait, so the contending holder has to be another
+  // process (as in production: one process per hook event). The child takes the lock,
+  // holds it 30 ms, leaves a marker as it releases; our body must start after that.
+  it("serialises with a holder in another process", async () => {
+    const lock = sessionLockPath("claude-code", "s1");
+    const marker = join(home, "released");
+    mkdirSync(sessionDir("claude-code"), { recursive: true });
+    const holder = spawn(process.execPath, ["-e", `
+      const fs = require("node:fs");
+      fs.mkdirSync(${JSON.stringify(lock)});
+      process.stdout.write("held\\n");
+      setTimeout(() => { fs.writeFileSync(${JSON.stringify(marker)}, ""); fs.rmSync(${JSON.stringify(lock)}, { recursive: true }); }, 30);
+    `], { stdio: ["ignore", "pipe", "inherit"] });
+    await new Promise<void>((r) => holder.stdout.once("data", () => r()));
+    expect(existsSync(lock)).toBe(true);
+    const sawRelease = await withSessionLock("claude-code", "s1", async () => existsSync(marker));
+    expect(sawRelease).toBe(true);
+    expect(existsSync(lock)).toBe(false);
+    await new Promise<void>((r) => holder.once("exit", () => r()));
+  });
+
+  it("releases the lock when the body throws", async () => {
+    await expect(withSessionLock("codex", "s2", async () => { throw new Error("boom"); })).rejects.toThrow("boom");
+    expect(existsSync(sessionLockPath("codex", "s2"))).toBe(false);
+  });
+
+  it("breaks a lock older than ten seconds", async () => {
+    const lock = sessionLockPath("claude-code", "s3");
+    mkdirSync(lock, { recursive: true });
+    const old = (Date.now() - 20_000) / 1000;
+    utimesSync(lock, old, old);
+    expect(await withSessionLock("claude-code", "s3", async () => 42)).toBe(42);
+    expect(existsSync(lock)).toBe(false);
+  });
+
+  it("gives up on a fresh foreign lock once the budget is spent", async () => {
+    const lock = sessionLockPath("claude-code", "s4");
+    mkdirSync(lock, { recursive: true });
+    const t0 = Date.now();
+    await expect(withSessionLock("claude-code", "s4", async () => 0, 100)).rejects.toThrow(`session lock timeout: ${lock}`);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(90);
+    expect(existsSync(lock)).toBe(true);   // a lock we did not take is not ours to remove
   });
 });
