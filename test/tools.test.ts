@@ -4,8 +4,8 @@
 
 import { describe, expect, it } from "vitest";
 import worker, { type Env } from "../src/index.js";
-import { MAX_CHAIN_ENTRIES } from "../src/limits.js";
-import { receiptString, vectorText } from "./helpers.js";
+import { MAX_CHAIN_ENTRIES, MAX_TRACE_RECORDS } from "../src/limits.js";
+import { bernsteinRecordText, receiptString, traceVector, vectorText } from "./helpers.js";
 import { parseJson, pyDumps, type JsonObject } from "../src/verify/pyjson.js";
 
 const env = {} as Env;
@@ -42,7 +42,18 @@ describe("tools/list", () => {
     );
     const body = (await res.json()) as any;
     const names = body.result.tools.map((t: { name: string }) => t.name).sort();
-    expect(names).toEqual(["explain_receipt", "get_preset", "list_adapters", "list_presets", "server_info", "verify_chain", "verify_receipt"]);
+    expect(names).toEqual([
+      "explain_receipt",
+      "explain_trace_mapping",
+      "get_preset",
+      "list_adapters",
+      "list_presets",
+      "server_info",
+      "verify_chain",
+      "verify_delegation_chain",
+      "verify_receipt",
+      "verify_trace_record",
+    ]);
     for (const t of body.result.tools) expect(t.outputSchema, `${t.name} outputSchema`).toBeDefined();
   });
 });
@@ -130,6 +141,15 @@ describe("verify_chain", () => {
     expect(out.detail).toBe("step 1: prev_hash break");
   });
 
+  it("refuses rows carrying a non-finite number without throwing", async () => {
+    const body = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify_chain","arguments":{"entries":[{"event":"x","ts":1e400}]}}}`;
+    const res = await worker.fetch(new Request("https://mcp.bernstein.run/mcp", { method: "POST", headers, body }), env, ctx);
+    const out = (await res.json()) as any;
+    expect(out.result.isError).toBeFalsy();
+    expect(out.result.structuredContent.intact).toBe(false);
+    expect(out.result.structuredContent.detail).toMatch(/non-finite/);
+  });
+
   it("detects spine entries", async () => {
     const entries = JSON.parse(vectorText("valid-short-with-audit-range")).input.spine.entries;
     const out = await call("verify_chain", { entries });
@@ -200,5 +220,99 @@ describe("presets and adapters", () => {
       expect(a.module).toMatch(/^bernstein\.adapters\.[a-z0-9_]+$/);
       expect(JSON.stringify(a)).not.toMatch(/\/Users|\/home|\.py"/);
     }
+  });
+});
+
+describe("verify_trace_record", () => {
+  it("verifies a bernstein-emitted record passed as a string", async () => {
+    const out = await call("verify_trace_record", { record: bernsteinRecordText("single-execution") });
+    expect(out.verdict).toBe("valid");
+    expect(out.failing_check).toBeNull();
+    expect(out.record_sha256).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(out.summary.subject).toMatch(/^spiffe:\/\/bernstein\.run\/run\//);
+    expect(out.checks.map((c: { name: string }) => c.name)[0]).toBe("parse");
+  });
+
+  it("verifies the same record passed as an object, and fails a tampered one", async () => {
+    const record = JSON.parse(bernsteinRecordText("delegated-child"));
+    expect((await call("verify_trace_record", { record })).verdict).toBe("valid");
+    const out = await call("verify_trace_record", { record: { ...record, data_class: "public" } });
+    expect(out.verdict).toBe("invalid");
+    expect(out.failing_check).toBe("signature");
+  });
+
+  it("is unverifiable for text that is not a record", async () => {
+    const out = await call("verify_trace_record", { record: "[]" });
+    expect(out.verdict).toBe("unverifiable");
+    expect(out.summary).toBeNull();
+  });
+});
+
+describe("verify_delegation_chain", () => {
+  it("walks a corpus vector with its own context", async () => {
+    const vec = traceVector("02-valid-full-depth-out-of-order");
+    const out = await call("verify_delegation_chain", { records: vec.records, context: vec.context });
+    expect(out.classification).toBe("verified");
+    expect(out.codes).toEqual([]);
+    expect(out.depth).toBe(4);
+    expect(out.walk[0].record_sha256).toBe(vec.context.leaf);
+    expect(out.first_broken_link).toBeNull();
+  });
+
+  it("reports the declared codes for a broken vector", async () => {
+    const vec = traceVector("16-credential-expired-at-hop");
+    const out = await call("verify_delegation_chain", { records: vec.records, context: vec.context });
+    expect(out.classification).toBe(vec.expected.classification);
+    expect(out.codes).toEqual([...vec.expected.codes].sort());
+    expect(out.first_broken_link.code).toBe("credential_window");
+  });
+
+  it("accepts the records as file text (one per line) and an empty context", async () => {
+    const text = ["delegated-parent", "delegated-child", "delegated-grandchild"].map((n) => bernsteinRecordText(n).trim()).join("\n");
+    const out = await call("verify_delegation_chain", { records: text, context: {} });
+    expect(out.walk[0].subject).toMatch(/grandchild$/);
+    expect(out.classification).toBe("provenance-invalid");
+    expect(out.codes).toEqual(["credential_unknown", "root_key_untrusted"]);
+  });
+
+  it("refuses a record carrying a non-finite number as a structured records_unparseable", async () => {
+    // JSON.parse turns 1e400 into Infinity; the refusal must still be structured, not an isError.
+    const body = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify_delegation_chain","arguments":{"records":[{"iat":1e400}],"context":{}}}}`;
+    const res = await worker.fetch(new Request("https://mcp.bernstein.run/mcp", { method: "POST", headers, body }), env, ctx);
+    const out = (await res.json()) as any;
+    expect(out.result.isError).toBeFalsy();
+    expect(out.result.structuredContent.classification).toBe("unverifiable");
+    expect(out.result.structuredContent.codes).toEqual(["records_unparseable"]);
+    expect(out.result.structuredContent.first_broken_link.detail).toMatch(/record 0/);
+  });
+
+  it("refuses a credential without its window at the input boundary", async () => {
+    const vec = traceVector("01-valid-single-hop");
+    const credentials = { "cred:orchestrator-to-planner": { issuer: "spiffe://acme.example/agent/orchestrator", holder: "spiffe://acme.example/agent/planner" } };
+    await expect(call("verify_delegation_chain", { records: vec.records, context: { ...vec.context, credentials } })).rejects.toThrow(/not_before/);
+  });
+
+  it(`refuses more than ${MAX_TRACE_RECORDS} records`, async () => {
+    const vec = traceVector("03-valid-root-only");
+    const out = await call("verify_delegation_chain", { records: Array(MAX_TRACE_RECORDS + 1).fill(vec.records[0]), context: vec.context });
+    expect(out.classification).toBe("unverifiable");
+    expect(out.codes).toEqual(["too_many_records"]);
+  });
+});
+
+describe("explain_trace_mapping", () => {
+  it("lists the mapping without a receipt", async () => {
+    const out = await call("explain_trace_mapping", {});
+    expect(out.mapping.length).toBeGreaterThan(10);
+    expect(out.verdict).toBeNull();
+    expect(out.receipt_sha256).toBeNull();
+    expect(out.markdown).toContain("| eat_profile |");
+  });
+
+  it("fills the subject from a receipt", async () => {
+    const out = await call("explain_trace_mapping", { receipt: receiptString("valid-short-with-audit-range") });
+    expect(out.verdict).toBe("valid");
+    const subject = out.mapping.find((m: { claim: string }) => m.claim === "subject");
+    expect(subject.value).toBe("spiffe://bernstein.run/run/golden-short/exec/golden-short");
   });
 });

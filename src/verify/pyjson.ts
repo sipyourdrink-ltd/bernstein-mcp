@@ -410,6 +410,26 @@ function jcsValue(v: JsonValue): string {
   return "{" + keys.map((k) => JSON.stringify(k) + ":" + jcsValue(v[k])).join(",") + "}";
 }
 
+/**
+ * The same serialization with object keys sorted by Unicode code point
+ * instead of UTF-16 code unit. NOT RFC 8785: the two orders differ only
+ * when a key contains a character outside the Basic Multilingual Plane,
+ * and this variant exists so a verifier can name that divergence in a
+ * diagnostic. Never used for a verdict.
+ */
+export function jcsCodePointOrder(value: JsonValue): string {
+  return jcsValueOrdered(value, compareCodePoints);
+}
+
+function jcsValueOrdered(v: JsonValue, cmp: (a: string, b: string) => number): string {
+  if (v === null || typeof v === "boolean") return String(v);
+  if (typeof v === "string") return JSON.stringify(v);
+  if (v instanceof JsonNumber) return jcsValue(v);
+  if (Array.isArray(v)) return "[" + v.map((x) => jcsValueOrdered(x, cmp)).join(",") + "]";
+  const keys = Object.keys(v).sort(cmp);
+  return "{" + keys.map((k) => JSON.stringify(k) + ":" + jcsValueOrdered(v[k], cmp)).join(",") + "}";
+}
+
 /** UTF-8 bytes of a string (lone surrogates become U+FFFD, as TextEncoder does). */
 export function utf8(s: string): Uint8Array {
   return new TextEncoder().encode(s);
