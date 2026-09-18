@@ -141,6 +141,15 @@ describe("verify_chain", () => {
     expect(out.detail).toBe("step 1: prev_hash break");
   });
 
+  it("refuses rows carrying a non-finite number without throwing", async () => {
+    const body = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify_chain","arguments":{"entries":[{"event":"x","ts":1e400}]}}}`;
+    const res = await worker.fetch(new Request("https://mcp.bernstein.run/mcp", { method: "POST", headers, body }), env, ctx);
+    const out = (await res.json()) as any;
+    expect(out.result.isError).toBeFalsy();
+    expect(out.result.structuredContent.intact).toBe(false);
+    expect(out.result.structuredContent.detail).toMatch(/non-finite/);
+  });
+
   it("detects spine entries", async () => {
     const entries = JSON.parse(vectorText("valid-short-with-audit-range")).input.spine.entries;
     const out = await call("verify_chain", { entries });
@@ -264,6 +273,23 @@ describe("verify_delegation_chain", () => {
     expect(out.walk[0].subject).toMatch(/grandchild$/);
     expect(out.classification).toBe("provenance-invalid");
     expect(out.codes).toEqual(["credential_unknown", "root_key_untrusted"]);
+  });
+
+  it("refuses a record carrying a non-finite number as a structured records_unparseable", async () => {
+    // JSON.parse turns 1e400 into Infinity; the refusal must still be structured, not an isError.
+    const body = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verify_delegation_chain","arguments":{"records":[{"iat":1e400}],"context":{}}}}`;
+    const res = await worker.fetch(new Request("https://mcp.bernstein.run/mcp", { method: "POST", headers, body }), env, ctx);
+    const out = (await res.json()) as any;
+    expect(out.result.isError).toBeFalsy();
+    expect(out.result.structuredContent.classification).toBe("unverifiable");
+    expect(out.result.structuredContent.codes).toEqual(["records_unparseable"]);
+    expect(out.result.structuredContent.first_broken_link.detail).toMatch(/record 0/);
+  });
+
+  it("refuses a credential without its window at the input boundary", async () => {
+    const vec = traceVector("01-valid-single-hop");
+    const credentials = { "cred:orchestrator-to-planner": { issuer: "spiffe://acme.example/agent/orchestrator", holder: "spiffe://acme.example/agent/planner" } };
+    await expect(call("verify_delegation_chain", { records: vec.records, context: { ...vec.context, credentials } })).rejects.toThrow(/not_before/);
   });
 
   it(`refuses more than ${MAX_TRACE_RECORDS} records`, async () => {

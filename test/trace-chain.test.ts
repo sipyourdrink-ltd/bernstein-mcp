@@ -172,6 +172,18 @@ describe("refusals", () => {
     expect(out.codes).toEqual(["too_many_records"]);
   });
 
+  it("treats a non-object delegation member as no delegation block (a root)", async () => {
+    const vec = traceVector("03-valid-root-only");
+    const root = { ...vec.records[0], delegation: null };
+    const out = await verifyDelegationChain([fromParsed(root)], { ...vec.context, leaf: traceDigest(fromParsed(root), "sha256") } as ChainContext);
+    // The altered record no longer verifies, but the walk must not read a link that is not there.
+    expect(out.codes).toEqual(["record_signature_invalid"]);
+    expect(out.codes).not.toContain("digest_algorithm_unsupported");
+    expect(out.depth).toBe(0);
+    expect(out.walk).toHaveLength(1);
+    expect(out.walk[0].delegation).toBeNull();
+  });
+
   it("record_not_object when a record is not a JSON object", async () => {
     const vec = traceVector("03-valid-root-only");
     const out = await verifyDelegationChain([...records(vec), fromParsed([1])], vec.context as ChainContext);

@@ -96,7 +96,7 @@ const chainContextSchema = z
     data_class_lattice: z.array(z.string()).optional().describe("Least to most sensitive; classes outside it are not compared. Default []."),
     trusted_root_keys: z.array(z.record(z.string(), z.unknown())).optional().describe("Public JWKs; identity is (kty, crv, x, y). Default [] → the root is untrusted."),
     credentials: z
-      .record(z.string(), z.object({ issuer: z.string().optional(), holder: z.string().optional(), not_before: z.number().optional(), not_after: z.number().optional() }))
+      .record(z.string(), z.object({ issuer: z.string(), holder: z.string(), not_before: z.number().int(), not_after: z.number().int() }))
       .optional()
       .describe("credential_id → {issuer, holder, not_before, not_after}. Default {} → every hop's credential is unknown."),
   })
@@ -274,7 +274,11 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
         }
         rows = parsed.rows;
       } else {
-        rows = fromParsed(entries) as JsonValue[];
+        try {
+          rows = fromParsed(entries) as JsonValue[];
+        } catch (exc) {
+          return reply({ ...chainRefused(kind, entries.length, `rows are not representable as JSON: ${(exc as Error).message}`) });
+        }
       }
       const out = verifyChain(rows, kind);
       if (opts.trace) opts.trace.verdict = out.intact ? "intact" : "broken";
@@ -375,14 +379,10 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
       } else {
         rows = [];
         for (const r of records) {
-          if (typeof r === "string") {
-            try {
-              rows.push(parseJson(r));
-            } catch (exc) {
-              return reply(chainUnverifiable("records_unparseable", `record ${rows.length} is not valid JSON: ${(exc as Error).message}`));
-            }
-          } else {
-            rows.push(fromParsed(r));
+          try {
+            rows.push(typeof r === "string" ? parseJson(r) : fromParsed(r));
+          } catch (exc) {
+            return reply(chainUnverifiable("records_unparseable", `record ${rows.length} is not valid JSON: ${(exc as Error).message}`));
           }
         }
       }

@@ -313,7 +313,9 @@ export async function verifyDelegationChain(records: JsonValue[], context: Chain
 
     take(evaluate(hop, "record"));
 
-    if (!("delegation" in current)) {
+    // A delegation member that is not an object is not a link: the schema
+    // already rejects it, and the walk has no algorithm or digest to read.
+    if (delegationOf(current) === null) {
       take(evaluate(hop, "root"));
       walk.push(hopView(current, hopDepth, hopCodes));
       break;
