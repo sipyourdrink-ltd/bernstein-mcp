@@ -5,7 +5,7 @@ import { init, status, uninstall } from "./install.js";
 import { loadOrCreateKey } from "./keys.js";
 import { markdownBlock } from "./link.js";
 import { keyPath, sessionDir } from "./paths.js";
-import { readMeta, readRows, writeMeta, type Meta } from "./store.js";
+import { readMeta, writeMeta, type Meta } from "./store.js";
 import { PRODUCER_NAME, PRODUCER_VERSION } from "./version.js";
 import { verifyReceipt } from "../src/verify/receipt.js";
 
@@ -104,8 +104,7 @@ export async function main(argv: string[]): Promise<number> {
       return 0;
     }
     if (!meta.last_verify_url) { process.stderr.write("session has no receipt yet; run `bernstein-attest seal`\n"); return 1; }
-    const rows = readRows(meta);
-    process.stdout.write(`${meta.last_verify_url}\n${markdownBlock({ url: meta.last_verify_url, toolCalls: rows.filter((r) => r.event === "tool_call").length, files: Object.keys(meta.files).length })}\n`);
+    process.stdout.write(`${meta.last_verify_url}\n${markdownBlock({ url: meta.last_verify_url, toolCalls: meta.last_receipt_tool_calls, files: meta.last_receipt_files })}\n`);
     return 0;
   }
 

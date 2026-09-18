@@ -61,6 +61,10 @@ function fileDigest(projectRoot: string, rel: string): string | null {
   } catch { return null; }
 }
 
+function toolCallsIn(rows: RowInput[]): number {
+  return rows.filter((r) => r.event === "tool_call").length;
+}
+
 export async function sealSession(meta: Meta, opts: { now: number; key: AttestKey; force?: boolean }): Promise<{ sealed: Sealed; runId: string; projectFile: string; stateFile: string } | null> {
   const lastIndex = meta.head.index - 1;
   if (!opts.force && lastIndex <= meta.sealed_index) return null;
@@ -80,11 +84,9 @@ export async function sealSession(meta: Meta, opts: { now: number; key: AttestKe
   meta.last_receipt_sha256 = sealed.receiptSha256;
   meta.last_run_id = id;
   meta.last_verify_url = verifyUrl(sealed.receiptSha256, from);
+  meta.last_receipt_tool_calls = toolCallsIn(rows);
+  meta.last_receipt_files = files.length;
   return { sealed, runId: id, projectFile, stateFile };
-}
-
-function toolCallsIn(rows: RowInput[]): number {
-  return rows.filter((r) => r.event === "tool_call").length;
 }
 
 async function onTool(agent: Agent, ev: Extract<HookEvent, { kind: "tool" }>, now: () => number, env: NodeJS.ProcessEnv): Promise<string> {
@@ -135,8 +137,7 @@ async function onStop(agent: Agent, ev: Extract<HookEvent, { kind: "stop" }>, no
   if (done) {
     const filesKey = Object.keys(meta.files).sort().join("\n");
     if (t - meta.last_notice_ts >= NOTICE_INTERVAL_S || filesKey !== meta.last_notice_files) {
-      const rows = readRows(meta);
-      const n = toolCallsIn(rows); const m = Object.keys(meta.files).length;
+      const n = meta.last_receipt_tool_calls; const m = meta.last_receipt_files;
       out = JSON.stringify({ systemMessage: `Session receipt sealed: ${n} tool call${n === 1 ? "" : "s"}, ${m} file${m === 1 ? "" : "s"}. File: .bernstein/receipts/${done.runId}.json. Verify: ${meta.last_verify_url}. If you open a PR, commit the file and put the link in the description.` }) + "\n";
       meta.last_notice_ts = t; meta.last_notice_files = filesKey;
     }

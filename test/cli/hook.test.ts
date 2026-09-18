@@ -144,6 +144,13 @@ describe("handleHook end to end", () => {
     let meta = readMeta("claude-code", "cc-sess-1")!;
     expect(meta.segment).toBe(2);
     expect(meta.prev_receipt_sha256).toMatch(/^[0-9a-f]{64}$/);
+    // Right after the rollover and before the next Stop, meta.last_verify_url still
+    // names segment 1's receipt (2000 rows, 1999 of them tool calls, no files touched
+    // by a Bash-only run) — the snapshot counts must describe that receipt, not the
+    // fresh segment 2 journal, which so far holds only its one segment_started row.
+    expect(meta.last_receipt_tool_calls).toBe(SEGMENT_ROWS - 1);
+    expect(meta.last_receipt_files).toBe(0);
+    expect(readRows(meta)).toHaveLength(1);
     const seg1 = readFileSync(join(project, ".bernstein", "receipts", "cc-sess-1.json"), "utf8");
     const v1 = await verifyReceipt(seg1);
     expect(v1.verdict).toBe("valid");

@@ -13,13 +13,16 @@ export interface Meta {
   files: Record<string, string>;
   turn: number; last_notice_ts: number; last_notice_files: string;
   last_receipt_sha256: string; last_run_id: string; last_verify_url: string;
+  /** Counts of the receipt named by last_run_id, so link/the notice describe the sealed file, not the live segment. */
+  last_receipt_tool_calls: number; last_receipt_files: number;
   prev_receipt_sha256: string;
 }
 
 export function newMeta(init: Pick<Meta, "agent" | "session_id" | "project_root" | "project" | "model" | "agent_version">): Meta {
   return {
     ...init, segment: 1, head: { ...GENESIS }, sealed_index: -1, files: {}, turn: 0,
-    last_notice_ts: 0, last_notice_files: "", last_receipt_sha256: "", last_run_id: "", last_verify_url: "", prev_receipt_sha256: "",
+    last_notice_ts: 0, last_notice_files: "", last_receipt_sha256: "", last_run_id: "", last_verify_url: "",
+    last_receipt_tool_calls: 0, last_receipt_files: 0, prev_receipt_sha256: "",
   };
 }
 
