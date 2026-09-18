@@ -231,7 +231,6 @@ describe("request log line", () => {
       expect(logs[2]).toMatchObject({ route: "/verify", method: "POST", verdict: "valid" });
       expect(logs[3]).toMatchObject({ route: "/verify/<sha256>", method: "GET", status: 200 });
       for (const l of logs) {
-        expect(typeof l.ms).toBe("number");
         expect(JSON.stringify(l)).not.toContain("203.0.113.9");
         expect(JSON.stringify(l)).not.toContain("run_id");
       }

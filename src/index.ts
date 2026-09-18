@@ -235,8 +235,10 @@ async function handleVerifyGet(request: Request, url: URL, signer: Signer | null
 
 /**
  * One line per request, as JSON, to the Workers log: what was asked and
- * how it went — route, method, status, elapsed ms, the JSON-RPC method,
- * the tool, the verdict, the MCP client's name/version, country and colo.
+ * how it went — route, method, status, the JSON-RPC method, the tool, the
+ * verdict, the MCP client's name/version, country and colo. Timing is not
+ * measured here (the clock does not advance inside a request); the
+ * invocation record the platform writes alongside carries wall and CPU time.
  * Never the address, never a header, never a byte of the body or receipt.
  */
 export interface RequestLog {
@@ -244,7 +246,6 @@ export interface RequestLog {
   route: string;
   method: string;
   status: number;
-  ms: number;
   rpc?: string;
   tool?: string;
   verdict?: string;
@@ -328,14 +329,12 @@ async function route(request: Request, env: Env, log: RequestLog): Promise<Respo
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
-    const t0 = Date.now();
     const cf = (request as Request & { cf?: { country?: string; colo?: string } }).cf;
     const log: RequestLog = {
       evt: "mcp.request",
       route: routeOf(new URL(request.url).pathname),
       method: request.method,
       status: 0,
-      ms: 0,
       ...(cf?.country ? { country: cf.country } : {}),
       ...(cf?.colo ? { colo: cf.colo } : {}),
     };
@@ -346,7 +345,6 @@ export default {
       response = jsonResponse({ error: "internal_error" }, 500);
     }
     log.status = response.status;
-    log.ms = Date.now() - t0;
     console.log(JSON.stringify(log));
     return response;
   },

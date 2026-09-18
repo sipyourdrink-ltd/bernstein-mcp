@@ -56,7 +56,7 @@ bytes at this time* — nothing about the receipt's producer.
 | Request body | 1 MiB |
 | Rows per chain | 2 000 (larger receipts: verify locally) |
 | Rate | 60 requests/min per address on `POST /mcp` and `POST /verify` |
-| Logging | one JSON line per request: route, method, status, latency, JSON-RPC method, tool, verdict, MCP client name/version, country, colo. Never the address, a header, the body or the receipt |
+| Logging | one JSON line per request: route, method, status, JSON-RPC method, tool, verdict, MCP client name/version, country, colo. Never the address, a header, the body or the receipt |
 
 ## Correctness
 
