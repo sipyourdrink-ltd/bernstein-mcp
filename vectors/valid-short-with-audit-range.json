@@ -1,0 +1,231 @@
+{
+ "name": "valid-short-with-audit-range",
+ "input": {
+  "audit_range": {
+   "event_count": 2,
+   "events": [
+    {
+     "actor": "alice",
+     "details": {
+      "_original_hmac": "4a8e276c6868aae75aba98ca312691614eb5b0fc52308fc6ef674b3efc0df20d",
+      "role": "backend"
+     },
+     "event_type": "task.created",
+     "hmac": "6bb459f3976c9954ce76335d18a1f39d6100f14d261350f9e73639b03fdc3eee",
+     "prev_hmac": "0000000000000000000000000000000000000000000000000000000000000000",
+     "resource_id": "T-1",
+     "resource_type": "task",
+     "timestamp": "2026-01-01T00:00:01.000000Z"
+    },
+    {
+     "actor": "alice",
+     "details": {
+      "_original_hmac": "b6fed66010db87ff0831f16b77692e5acb84e73172d3e66e655a48054fa4e3a6",
+      "note": "юникод",
+      "status": "ok"
+     },
+     "event_type": "task.completed",
+     "hmac": "c25f22be7532c83191c8d9c919a49bf5a13a3d37fa940348765009a5f5678139",
+     "prev_hmac": "6bb459f3976c9954ce76335d18a1f39d6100f14d261350f9e73639b03fdc3eee",
+     "resource_id": "T-1",
+     "resource_type": "task",
+     "timestamp": "2026-01-01T00:00:02.000000Z"
+    }
+   ],
+   "head_hmac": "c25f22be7532c83191c8d9c919a49bf5a13a3d37fa940348765009a5f5678139",
+   "head_sha256": "b6785e549beacfc34f68f08e6e5c0e17286ce39a116308d809170c59f4cf2282",
+   "since": "2026-01-01T00:00:00.000000Z",
+   "until": "2026-01-02T00:00:00.000000Z"
+  },
+  "journal": {
+   "event_count": 3,
+   "events": [
+    {
+     "event": "run_started",
+     "event_hash": "5427ec2184cff52d14e02bf613ec97b24bff809a6b0585c57ae39f294bf25603",
+     "index": 0,
+     "payload_hash": "eca42dd7b334f53e3b74779641c98e9278c846094a687a9b433f73b8a070fc5b",
+     "plan": "plan.md",
+     "prev_hash": "",
+     "run_id": "golden-short"
+    },
+    {
+     "attempt": 0,
+     "event": "task_claimed",
+     "event_hash": "7271c451b4fa9f38107596e0698c5aefca0e8b27011669613c3017d7db60092c",
+     "index": 1,
+     "payload_hash": "43663c80af385cc32cecb5fe7c6d44e5fe79fea5ff12cb5a859e4dc51d13df26",
+     "prev_hash": "5427ec2184cff52d14e02bf613ec97b24bff809a6b0585c57ae39f294bf25603",
+     "role": "backend",
+     "task_id": "T-0"
+    },
+    {
+     "event": "run_completed",
+     "event_hash": "a7dcaa558a72f5efd0f52a6010fb25f7c6b1b3d8cc196b3bdd0d73ff05a126c4",
+     "index": 2,
+     "payload_hash": "64e4e901215e87fdce89099c329154ea5cee4b819b7b46df0212931e78bb5982",
+     "prev_hash": "7271c451b4fa9f38107596e0698c5aefca0e8b27011669613c3017d7db60092c",
+     "run_id": "golden-short",
+     "ticks": 3
+    }
+   ],
+   "head_hash": "a7dcaa558a72f5efd0f52a6010fb25f7c6b1b3d8cc196b3bdd0d73ff05a126c4"
+  },
+  "receipt_type": "https://bernstein.run/attestations/run-receipt/v1",
+  "run_id": "golden-short",
+  "schema_version": "1.1.0",
+  "signing": {
+   "alg": "EdDSA",
+   "key_id": "bernstein-mcp-golden-2026-09-18",
+   "payload_type": "application/vnd.bernstein.run-receipt+json",
+   "public_key_jwk": {
+    "alg": "EdDSA",
+    "crv": "Ed25519",
+    "kid": "bernstein-mcp-golden-2026-09-18",
+    "kty": "OKP",
+    "x": "5nyn6MD49aYcYErdgXHZmCDmGA5sIH9zizlgQXtGekA"
+   },
+   "signature_b64": "Zn1G6pA3NX8Iy3HfiDGxktkWA5CmWJZKbN28zzhgU+ujnEdsYOfmXooQvFDtHNZg+jpGgfR84c2v7VYSxCruCg=="
+  },
+  "spine": {
+   "entries": [
+    {
+     "actor": "backend",
+     "artifact_path": "src/mod_0.py",
+     "content_hash": "sha256:aff279cf825cb3ee50ef5ae20f9c75242b35e4ea8764c52f92330149fc7d6b53",
+     "entry_hash": "sha256:b1eed8aa6c4a25b6c68a1aa067f78a310e5ab5cf93b46b2de0995fd6eef18b2f",
+     "model": "m1",
+     "prev_hash": "",
+     "step_id": "T-0",
+     "timestamp": 1000,
+     "v": 2
+    },
+    {
+     "actor": "qa",
+     "artifact_path": "src/mod_1.py",
+     "content_hash": "sha256:8b154eb185c922599e82a8534a987864c32b53d83a27399f7ac682889702b02a",
+     "entry_hash": "sha256:98c6f8dc63f19db8444bd141e9ff1adda12363285f3641e9734ed47fca4124c9",
+     "model": "m1",
+     "prev_hash": "sha256:b1eed8aa6c4a25b6c68a1aa067f78a310e5ab5cf93b46b2de0995fd6eef18b2f",
+     "step_id": "T-1",
+     "timestamp": 1001,
+     "v": 2
+    }
+   ],
+   "entry_count": 2,
+   "head_hash": "sha256:98c6f8dc63f19db8444bd141e9ff1adda12363285f3641e9734ed47fca4124c9"
+  },
+  "subject": {
+   "digest": {
+    "sha256": "57556d09b9f1909028b9c2f649656ba0d690942786f800e68b9baa07823bb09b"
+   },
+   "name": "run-receipt-golden-short"
+  }
+ },
+ "expected": {
+  "verdict": "valid",
+  "failing_check": null,
+  "checks": [
+   {
+    "name": "schema",
+    "outcome": "ok",
+    "detail": ""
+   },
+   {
+    "name": "journal_chain",
+    "outcome": "ok",
+    "detail": "3 rows"
+   },
+   {
+    "name": "journal_head",
+    "outcome": "ok",
+    "detail": ""
+   },
+   {
+    "name": "spine_chain",
+    "outcome": "ok",
+    "detail": "2 entries"
+   },
+   {
+    "name": "spine_head",
+    "outcome": "ok",
+    "detail": ""
+   },
+   {
+    "name": "audit_range_head",
+    "outcome": "ok",
+    "detail": ""
+   },
+   {
+    "name": "audit_range_linkage",
+    "outcome": "ok",
+    "detail": "prev_hmac chain + head_hmac consistent"
+   },
+   {
+    "name": "audit_range_hmac",
+    "outcome": "unverifiable",
+    "detail": "HMAC-SHA256 keyed by the producing install; no key here"
+   },
+   {
+    "name": "subject_binding",
+    "outcome": "ok",
+    "detail": ""
+   },
+   {
+    "name": "signature",
+    "outcome": "ok",
+    "detail": "Ed25519 over DSSE PAE(binding) with embedded JWK (trust-on-first-use)"
+   }
+  ],
+  "python_status": "ok",
+  "python_errors": [],
+  "divergent_step": null
+ },
+ "canonical": {
+  "binding_block": {
+   "journal_event_count": 3,
+   "journal_head": "a7dcaa558a72f5efd0f52a6010fb25f7c6b1b3d8cc196b3bdd0d73ff05a126c4",
+   "run_id": "golden-short",
+   "spine_entry_count": 2,
+   "spine_head": "sha256:98c6f8dc63f19db8444bd141e9ff1adda12363285f3641e9734ed47fca4124c9",
+   "audit_range_event_count": 2,
+   "audit_range_head_hmac": "c25f22be7532c83191c8d9c919a49bf5a13a3d37fa940348765009a5f5678139",
+   "audit_range_head_sha256": "b6785e549beacfc34f68f08e6e5c0e17286ce39a116308d809170c59f4cf2282",
+   "audit_range_since": "2026-01-01T00:00:00.000000Z",
+   "audit_range_until": "2026-01-02T00:00:00.000000Z"
+  },
+  "binding_bytes_b64": "eyJhdWRpdF9yYW5nZV9ldmVudF9jb3VudCI6MiwiYXVkaXRfcmFuZ2VfaGVhZF9obWFjIjoiYzI1ZjIyYmU3NTMyYzgzMTkxYzhkOWM5MTlhNDliZjVhMTNhM2QzN2ZhOTQwMzQ4NzY1MDA5YTVmNTY3ODEzOSIsImF1ZGl0X3JhbmdlX2hlYWRfc2hhMjU2IjoiYjY3ODVlNTQ5YmVhY2ZjMzRmNjhmMDhlNmU1YzBlMTcyODZjZTM5YTExNjMwOGQ4MDkxNzBjNTlmNGNmMjI4MiIsImF1ZGl0X3JhbmdlX3NpbmNlIjoiMjAyNi0wMS0wMVQwMDowMDowMC4wMDAwMDBaIiwiYXVkaXRfcmFuZ2VfdW50aWwiOiIyMDI2LTAxLTAyVDAwOjAwOjAwLjAwMDAwMFoiLCJqb3VybmFsX2V2ZW50X2NvdW50IjozLCJqb3VybmFsX2hlYWQiOiJhN2RjYWE1NThhNzJmNWVmZDBmNTJhNjAxMGZiMjVmN2M2YjFiM2Q4Y2MxOTZiM2JkZDBkNzNmZjA1YTEyNmM0IiwicnVuX2lkIjoiZ29sZGVuLXNob3J0Iiwic3BpbmVfZW50cnlfY291bnQiOjIsInNwaW5lX2hlYWQiOiJzaGEyNTY6OThjNmY4ZGM2M2YxOWRiODQ0NGJkMTQxZTlmZjFhZGRhMTIzNjMyODVmMzY0MWU5NzM0ZWQ0N2ZjYTQxMjRjOSJ9",
+  "binding_bytes_sha256": "57556d09b9f1909028b9c2f649656ba0d690942786f800e68b9baa07823bb09b",
+  "pae_sha256": "04691403e9dd7ed3c228544d03a0f3afe438e4c64e48c1c9b88583eaae2165a1",
+  "journal_rows": [
+   {
+    "index": 0,
+    "payload_hash": "eca42dd7b334f53e3b74779641c98e9278c846094a687a9b433f73b8a070fc5b",
+    "event_hash": "5427ec2184cff52d14e02bf613ec97b24bff809a6b0585c57ae39f294bf25603"
+   },
+   {
+    "index": 1,
+    "payload_hash": "43663c80af385cc32cecb5fe7c6d44e5fe79fea5ff12cb5a859e4dc51d13df26",
+    "event_hash": "7271c451b4fa9f38107596e0698c5aefca0e8b27011669613c3017d7db60092c"
+   },
+   {
+    "index": 2,
+    "payload_hash": "64e4e901215e87fdce89099c329154ea5cee4b819b7b46df0212931e78bb5982",
+    "event_hash": "a7dcaa558a72f5efd0f52a6010fb25f7c6b1b3d8cc196b3bdd0d73ff05a126c4"
+   }
+  ],
+  "spine_rows": [
+   {
+    "index": 0,
+    "entry_hash": "sha256:b1eed8aa6c4a25b6c68a1aa067f78a310e5ab5cf93b46b2de0995fd6eef18b2f"
+   },
+   {
+    "index": 1,
+    "entry_hash": "sha256:98c6f8dc63f19db8444bd141e9ff1adda12363285f3641e9734ed47fca4124c9"
+   }
+  ],
+  "receipt_canonical_sha256": "e46919ef58a0da2c50f386a43fe9a348d2242c6990aba9d3a68e9fbdf4239a5b",
+  "receipt_sha256": "3c34a53c46f3d6f3f4b79be679537e864ed8effec655f5cacc78494780a6e70d"
+ },
+ "notes": "Signed with a fixed Ed25519 seed (kid bernstein-mcp-golden-2026-09-18); the public key is embedded in input.signing.public_key_jwk and duplicated as PEM in notes_public_key_pem. Verification needs no secret: journal + spine heads recompute from the embedded rows, the subject binding is rebuilt from recomputed heads, then one Ed25519 verify over DSSE PAE('application/vnd.bernstein.run-receipt+json', binding_bytes). Includes the opt-in audit_range: head_sha256 and prev_hmac linkage are keyless, the HMAC values themselves are unverifiable without the install key."
+}

@@ -1,0 +1,16 @@
+{
+ "runs": 3,
+ "receipt_bytes": 3700438,
+ "journal_events": 10000,
+ "spine_entries": 100,
+ "verify_total_ms": [
+  81.71,
+  82.14,
+  83.73
+ ],
+ "verify_total_median_ms": 82.14,
+ "json_parse_median_ms": 14.13,
+ "journal_walk_median_ms": 65.79,
+ "ed25519_verifications": 1,
+ "sha256_calls_approx": 20102
+}

@@ -1,0 +1,8 @@
+.bernstein-src/
+node_modules/
+.wrangler/
+dist/
+.env
+.env.*
+*.log
+.DS_Store

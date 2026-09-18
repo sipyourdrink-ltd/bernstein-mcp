@@ -1,0 +1,270 @@
+{
+  "adapters": [
+    {
+      "binary": "agy",
+      "module": "bernstein.adapters.agy",
+      "name": "agy"
+    },
+    {
+      "binary": "aichat",
+      "module": "bernstein.adapters.aichat",
+      "name": "aichat"
+    },
+    {
+      "binary": "aider",
+      "module": "bernstein.adapters.aider",
+      "name": "aider"
+    },
+    {
+      "binary": "amp",
+      "module": "bernstein.adapters.amp",
+      "name": "amp"
+    },
+    {
+      "binary": "antigravity",
+      "module": "bernstein.adapters.gemini",
+      "name": "antigravity"
+    },
+    {
+      "binary": "auggie",
+      "module": "bernstein.adapters.auggie",
+      "name": "auggie"
+    },
+    {
+      "binary": "autohand",
+      "module": "bernstein.adapters.autohand",
+      "name": "autohand"
+    },
+    {
+      "binary": "charm",
+      "module": "bernstein.adapters.charm",
+      "name": "charm"
+    },
+    {
+      "binary": "claude",
+      "module": "bernstein.adapters.claude",
+      "name": "claude"
+    },
+    {
+      "binary": "cline",
+      "module": "bernstein.adapters.cline",
+      "name": "cline"
+    },
+    {
+      "binary": "clm",
+      "module": "bernstein.adapters.clm",
+      "name": "clm"
+    },
+    {
+      "binary": "codebuff",
+      "module": "bernstein.adapters.codebuff",
+      "name": "codebuff"
+    },
+    {
+      "binary": "codex",
+      "module": "bernstein.adapters.codex",
+      "name": "codex"
+    },
+    {
+      "binary": "cody",
+      "module": "bernstein.adapters.cody",
+      "name": "cody"
+    },
+    {
+      "binary": "ao",
+      "module": "bernstein.adapters.composio",
+      "name": "composio"
+    },
+    {
+      "binary": "computer_use",
+      "module": "bernstein.adapters.computer_use",
+      "name": "computer_use"
+    },
+    {
+      "binary": "continue",
+      "module": "bernstein.adapters.continue_dev",
+      "name": "continue"
+    },
+    {
+      "binary": "copilot",
+      "module": "bernstein.adapters.copilot",
+      "name": "copilot"
+    },
+    {
+      "binary": "cursor",
+      "module": "bernstein.adapters.cursor",
+      "name": "cursor"
+    },
+    {
+      "binary": "devin",
+      "module": "bernstein.adapters.devin_terminal",
+      "name": "devin_terminal"
+    },
+    {
+      "binary": "droid",
+      "module": "bernstein.adapters.droid",
+      "name": "droid"
+    },
+    {
+      "binary": "forge",
+      "module": "bernstein.adapters.forge",
+      "name": "forge"
+    },
+    {
+      "binary": "garak",
+      "module": "bernstein.adapters.garak",
+      "name": "garak"
+    },
+    {
+      "binary": "gemini",
+      "module": "bernstein.adapters.gemini",
+      "name": "gemini"
+    },
+    {
+      "binary": "",
+      "module": "bernstein.adapters.generic",
+      "name": "generic"
+    },
+    {
+      "binary": "goose",
+      "module": "bernstein.adapters.goose",
+      "name": "goose"
+    },
+    {
+      "binary": "gptme",
+      "module": "bernstein.adapters.gptme",
+      "name": "gptme"
+    },
+    {
+      "binary": "hermes",
+      "module": "bernstein.adapters.hermes",
+      "name": "hermes"
+    },
+    {
+      "binary": "holmesgpt",
+      "module": "bernstein.adapters.holmesgpt",
+      "name": "holmesgpt"
+    },
+    {
+      "binary": "iac",
+      "module": "bernstein.adapters.iac",
+      "name": "iac"
+    },
+    {
+      "binary": "junie",
+      "module": "bernstein.adapters.junie",
+      "name": "junie"
+    },
+    {
+      "binary": "kilo",
+      "module": "bernstein.adapters.kilo",
+      "name": "kilo"
+    },
+    {
+      "binary": "kimchi",
+      "module": "bernstein.adapters.kimchi",
+      "name": "kimchi"
+    },
+    {
+      "binary": "kimi",
+      "module": "bernstein.adapters.kimi",
+      "name": "kimi"
+    },
+    {
+      "binary": "kiro",
+      "module": "bernstein.adapters.kiro",
+      "name": "kiro"
+    },
+    {
+      "binary": "letta",
+      "module": "bernstein.adapters.letta_code",
+      "name": "letta_code"
+    },
+    {
+      "binary": "mistral",
+      "module": "bernstein.adapters.mistral",
+      "name": "mistral"
+    },
+    {
+      "binary": "",
+      "module": "bernstein.adapters.mock",
+      "name": "mock"
+    },
+    {
+      "binary": "muse",
+      "module": "bernstein.adapters.muse",
+      "name": "muse"
+    },
+    {
+      "binary": "ollama",
+      "module": "bernstein.adapters.ollama",
+      "name": "ollama"
+    },
+    {
+      "binary": "interpreter",
+      "module": "bernstein.adapters.open_interpreter",
+      "name": "open_interpreter"
+    },
+    {
+      "binary": "python",
+      "module": "bernstein.adapters.openai_agents",
+      "name": "openai_agents"
+    },
+    {
+      "binary": "opencode",
+      "module": "bernstein.adapters.opencode",
+      "name": "opencode"
+    },
+    {
+      "binary": "openhands",
+      "module": "bernstein.adapters.openhands",
+      "name": "openhands"
+    },
+    {
+      "binary": "pi",
+      "module": "bernstein.adapters.pi",
+      "name": "pi"
+    },
+    {
+      "binary": "plandex",
+      "module": "bernstein.adapters.plandex",
+      "name": "plandex"
+    },
+    {
+      "binary": "clai",
+      "module": "bernstein.adapters.capability_profile",
+      "name": "pydantic_ai"
+    },
+    {
+      "binary": "python",
+      "module": "bernstein.adapters.python_runtime",
+      "name": "python_runtime"
+    },
+    {
+      "binary": "q",
+      "module": "bernstein.adapters.q_dev",
+      "name": "q_dev"
+    },
+    {
+      "binary": "qwen",
+      "module": "bernstein.adapters.qwen",
+      "name": "qwen"
+    },
+    {
+      "binary": "ralphex",
+      "module": "bernstein.adapters.ralphex",
+      "name": "ralphex"
+    },
+    {
+      "binary": "rovo",
+      "module": "bernstein.adapters.rovo",
+      "name": "rovo"
+    },
+    {
+      "binary": "skyvern",
+      "module": "bernstein.adapters.skyvern",
+      "name": "skyvern"
+    }
+  ],
+  "bernstein_version": "v3.19.2"
+}

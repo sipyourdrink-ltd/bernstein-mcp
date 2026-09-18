@@ -1,0 +1,25 @@
+name = "bernstein-mcp"
+main = "src/index.ts"
+compatibility_date = "2026-09-18"
+account_id = "014c346e97ff3260b6956903e62f944d"
+workers_dev = false
+
+[[routes]]
+pattern = "mcp.bernstein.run/*"
+zone_id = "0e38f085984bf987cfca78b7c7fcc8c9"
+
+# Fonts are shipped inside the Worker as Data modules and served at /fonts/*.
+[[rules]]
+type = "Data"
+globs = ["**/*.woff2"]
+fallthrough = true
+
+[observability]
+enabled = true
+
+# 60 requests per minute per client IP on POST /mcp and POST /verify.
+# namespace_id is an arbitrary per-account integer that scopes the counters.
+[[ratelimits]]
+name = "MCP_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

@@ -1,0 +1,26 @@
+{
+  "name": "bernstein-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Cloudflare Worker: stateless MCP endpoint at mcp.bernstein.run.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test": "bash scripts/check-no-fetch.sh && bash scripts/check-data-tag.sh && vitest run",
+    "typecheck": "tsc --noEmit",
+    "audit": "npm audit --audit-level=high"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@noble/hashes": "2.4.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260918.1",
+    "@types/node": "24.10.1",
+    "typescript": "^5.4.0",
+    "vitest": "4.1.11",
+    "wrangler": "4.134.0"
+  }
+}
