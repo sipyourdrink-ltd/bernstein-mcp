@@ -195,7 +195,7 @@ describe("verifyTraceRecord", () => {
 
   it("verifies an ES256 (P-256) signature made in this test", async () => {
     const base = JSON.parse(bernsteinRecordText("single-execution"));
-    const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+    const kp = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair;
     const pub = (await crypto.subtle.exportKey("jwk", kp.publicKey)) as JsonWebKey;
     const { signature: _sig, ...body } = base;
     body.cnf = { jwk: { kty: "EC", crv: "P-256", x: pub.x, y: pub.y } };

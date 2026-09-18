@@ -99,7 +99,6 @@ describe("bernstein fixtures as a chain", () => {
       leaf: traceDigest(grand, "sha256"),
       max_depth: 8,
       supported_digest_algorithms: ["sha256"],
-      data_class_lattice: ["public", "internal", "confidential", "restricted"],
       trusted_root_keys: [rootJwk],
       credentials,
     };
@@ -115,6 +114,17 @@ describe("bernstein fixtures as a chain", () => {
     expect(out.classification, JSON.stringify(out)).toBe("verified");
     expect(out.depth).toBe(2);
     expect(out.walk.map((h) => h.subject)).toEqual([subject(grand), subject(child), subject(parent)]);
+  });
+
+  it("flags the grandchild's widened data_class once a lattice makes the classes comparable", async () => {
+    const creds = {
+      [credId(child)]: { issuer: subject(parent), holder: subject(child), not_before: iat(child) - 60, not_after: iat(child) + 60 },
+      [credId(grand)]: { issuer: subject(child), holder: subject(grand), not_before: iat(grand) - 60, not_after: iat(grand) + 60 },
+    };
+    const out = await verifyDelegationChain([parent, child, grand], { ...context(creds), data_class_lattice: ["public", "internal", "confidential", "restricted"] });
+    expect(out.classification).toBe("authorization-invalid");
+    expect(out.codes).toEqual(["data_class_widened"]);
+    expect(out.first_broken_link?.record_sha256).toBe(traceDigest(grand, "sha256"));
   });
 
   it("is authorization-invalid with no credentials registered", async () => {
@@ -146,8 +156,9 @@ describe("refusals", () => {
   });
 
   it("leaf_ambiguous when two records are unreferenced", async () => {
+    // Two chains with distinct leaves and distinct roots (24's root carries extra JWK members).
     const a = traceVector("01-valid-single-hop");
-    const b = traceVector("03-valid-root-only");
+    const b = traceVector("24-parent-key-supplementary-plane");
     const out = await verifyDelegationChain([...records(a), ...records(b)], { ...a.context, leaf: undefined } as ChainContext);
     expect(out.classification).toBe("unverifiable");
     expect(out.codes).toEqual(["leaf_ambiguous"]);
