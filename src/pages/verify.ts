@@ -55,7 +55,11 @@ function shareLink(receipt: string, v: ReceiptVerification): string {
   return `<p class="hint" style="margin-top:12px">share: <a href="/verify/${v.receipt_sha256}?r=${base64UrlEncode(receipt)}">a link that carries the receipt itself</a> — anyone opening it sees this verdict recomputed, not remembered.</p>`;
 }
 
-export function renderVerifyForm(opts: { expected?: string; problem?: string } = {}): string {
+export function renderVerifyForm(opts: { expected?: string; problem?: string; from?: string } = {}): string {
+  const from = opts.from ? new URL(opts.from) : null;
+  const fetching = from
+    ? `<p class="note" id="from-note" data-from="${escapeHtml(from.toString())}">loading the receipt from <code>${escapeHtml(from.host)}</code>… the bytes are fetched by your browser and verified once; nothing is stored.</p>`
+    : "";
   return page({
     title: "verify a run receipt",
     description: "Paste a bernstein run receipt; every chain is recomputed and the signature checked, nothing is stored.",
@@ -64,9 +68,24 @@ export function renderVerifyForm(opts: { expected?: string; problem?: string } =
 <header class="pre"><span class="meta">stateless · keyless · nothing stored</span></header>
 <h1><span>verify a <em>run receipt</em>.</span></h1>
 <p class="lede">every hash chain the receipt carries is recomputed from the rows it embeds, the signed subject is rebuilt from those recomputed heads, and the ed25519 signature is checked with the key the receipt names. the verdict is a function of the bytes and nothing else.</p>
-${form(opts)}`,
+${fetching}${form(opts)}`,
+    script: from ? FROM_SCRIPT : undefined,
   });
 }
+
+// Runs in the visitor's browser, never in the Worker. Reads the URL from the
+// note's data attribute, pulls the bytes with the browser's own client,
+// puts them in the textarea and submits the existing form. Any failure
+// leaves the plain paste form behind with a one-line reason.
+const FROM_SCRIPT = `(function(){
+var note=document.getElementById("from-note");var ta=document.getElementById("receipt");var form=ta&&ta.form;
+if(!note||!ta||!form)return;var url=note.getAttribute("data-from");var get=globalThis.fetch;
+function fail(why){note.textContent="could not load the receipt from "+url+": "+why+". paste it instead.";}
+get(url,{mode:"cors",credentials:"omit",redirect:"follow"}).then(function(r){
+if(!r.ok)throw new Error("http "+r.status);var len=r.headers.get("content-length");
+if(len&&Number(len)>${MAX_BODY_BYTES})throw new Error("larger than ${MAX_BODY_BYTES} bytes");return r.text();
+}).then(function(t){if(t.length>${MAX_BODY_BYTES})throw new Error("larger than ${MAX_BODY_BYTES} bytes");ta.value=t;form.requestSubmit();
+}).catch(function(e){fail(e&&e.message?e.message:String(e));});})();`;
 
 function signedBlock(signed: SignedVerdict | null): string {
   if (!signed) return "";

@@ -159,7 +159,7 @@ const FONTS: Record<string, ArrayBuffer> = {
   "/fonts/jetbrains-mono-latin.woff2": jetbrainsMonoLatin,
 };
 
-function html(markup: string, cacheControl = "no-store"): Response {
+function html(markup: string, cacheControl = "no-store", opts: { connect?: boolean } = {}): Response {
   const response = withStandardHeaders(
     new Response(markup, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }),
   );
@@ -167,9 +167,15 @@ function html(markup: string, cacheControl = "no-store"): Response {
   // A share link carries the receipt in its query string; no referrer may
   // ever leak it to a linked site. Inline script/style are the page's own.
   response.headers.set("referrer-policy", "no-referrer");
+  // `connect-src https:` is only added for the one page that loads a
+  // receipt from an `https://` URL in the visitor's own browser (see
+  // handleVerifyGet's `from` branch); every other page keeps the tighter
+  // default that permits no outbound connection at all.
   response.headers.set(
     "content-security-policy",
-    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src 'self'; img-src data:; " +
+      (opts.connect ? "connect-src https:; " : "") +
+      "form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
   );
   return response;
 }
@@ -222,6 +228,19 @@ async function handleVerifyGet(request: Request, url: URL, signer: Signer | null
   const rest = url.pathname.slice("/verify".length).replace(/^\//, "");
   if (rest !== "" && !SHA256_HEX.test(rest)) return notFound();
   const expected = rest || undefined;
+  const from = url.searchParams.get("from");
+  if (from !== null) {
+    let parsed: URL | null = null;
+    try {
+      parsed = new URL(from);
+    } catch {
+      parsed = null;
+    }
+    if (!parsed || parsed.protocol !== "https:") {
+      return html(renderVerifyForm({ expected, problem: "The from parameter must be an https URL." }));
+    }
+    return html(renderVerifyForm({ expected, from: parsed.toString() }), "no-store", { connect: true });
+  }
   const r = url.searchParams.get("r");
   if (r === null) return html(renderVerifyForm({ expected }));
   const receipt = base64UrlDecode(r);

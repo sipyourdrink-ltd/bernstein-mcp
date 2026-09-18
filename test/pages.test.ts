@@ -166,3 +166,34 @@ describe("/verify", () => {
     expect((await req("/verify", { method: "PUT" })).status).toBe(405);
   });
 });
+
+describe("GET /verify?from=", () => {
+  const from = "https://raw.githubusercontent.com/o/r/main/.bernstein/receipts/s.json";
+  it("renders a page that fetches the receipt in the browser and submits it", async () => {
+    const res = await req(`/verify/${"ab".repeat(32)}?from=${encodeURIComponent(from)}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-security-policy")).toContain("connect-src https:");
+    const body = await res.text();
+    expect(body).toContain('data-from="' + from + '"');
+    expect(body).toContain("raw.githubusercontent.com");
+    expect(body).toContain("<script>");
+    expect(body).toContain("requestSubmit");
+    expect(body).not.toContain("innerHTML");
+    expect(body).toContain(`sha256:${"ab".repeat(32)}`);
+  });
+  it("refuses anything but https and keeps the plain form", async () => {
+    for (const bad of ["http://x/r.json", "ftp://x", "javascript:alert(1)", "not a url"]) {
+      const res = await req(`/verify?from=${encodeURIComponent(bad)}`);
+      const body = await res.text();
+      expect(res.status).toBe(200);
+      expect(body).toContain("must be an https URL");
+      expect(body).not.toContain("<script>");
+      expect(res.headers.get("content-security-policy")).not.toContain("connect-src");
+    }
+  });
+  it("the plain form still carries no script and no connect-src", async () => {
+    const res = await req("/verify");
+    expect(res.headers.get("content-security-policy")).not.toContain("connect-src");
+    expect(await res.text()).not.toContain("<script>");
+  });
+});
