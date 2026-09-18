@@ -45,9 +45,18 @@ export function toPlain(value: JsonValue | unknown): unknown {
 export function validateTraceRecord(value: JsonValue | unknown): SchemaResult {
   const result = getValidator().validate(toPlain(value));
   if (result.valid) return { ok: true, errors: [] };
-  const errors = result.errors
-    .map((e, i) => ({ path: e.instanceLocation, message: e.error, i }))
+  const raw = result.errors.map((e, i) => ({ path: e.instanceLocation, message: e.error, i }));
+  const errors = raw
     .sort((a, b) => b.path.length - a.path.length || a.i - b.i)
-    .map(({ path, message }) => ({ path, message }));
+    .map(({ path, message }) => {
+      // `additionalProperties: false` reports the property itself against a
+      // boolean schema; the enclosing error is the one that names it.
+      if (/^False boolean schema\.$/.test(message)) {
+        const parent = path.slice(0, path.lastIndexOf("/"));
+        const enclosing = raw.find((e) => e.path === parent);
+        if (enclosing) return { path, message: enclosing.message };
+      }
+      return { path, message };
+    });
   return { ok: false, errors };
 }
