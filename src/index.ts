@@ -189,15 +189,21 @@ function wantsJson(request: Request): boolean {
   return accept.includes("application/json") && !accept.includes("text/html");
 }
 
-/** Read the receipt out of a form post, a JSON post, or a raw text post. */
-async function receiptFromPost(request: Request): Promise<{ ok: true; receipt: string } | { ok: false; status: number; message: string }> {
+/**
+ * Read the receipt out of a form post, a JSON post, or a raw text post. A form
+ * post may also carry `expected`, the digest from a /verify/<digest> address;
+ * anything that is not a digest is dropped.
+ */
+async function receiptFromPost(request: Request): Promise<{ ok: true; receipt: string; expected?: string } | { ok: false; status: number; message: string }> {
   const body = await readBodyWithLimit(request, MAX_BODY_BYTES);
   if (!body.ok) return { ok: false, status: 413, message: "Request body exceeds the 1 MB limit." };
   const type = request.headers.get("content-type") ?? "";
   if (type.startsWith("application/x-www-form-urlencoded")) {
-    const receipt = new URLSearchParams(body.text).get("receipt");
+    const form = new URLSearchParams(body.text);
+    const receipt = form.get("receipt");
     if (receipt === null) return { ok: false, status: 400, message: "Form field `receipt` is missing." };
-    return { ok: true, receipt };
+    const expected = form.get("expected");
+    return expected !== null && SHA256_HEX.test(expected) ? { ok: true, receipt, expected } : { ok: true, receipt };
   }
   if (type.startsWith("application/json")) {
     // Either {"receipt": <string|object>} or the receipt object itself.
@@ -224,7 +230,7 @@ async function handleVerifyPost(request: Request, signer: Signer | null, log: Re
   if (v.summary) log.producer = producerFamily(v.summary.producer);
   const signed = signer ? await signVerdict(v, signer, BERNSTEIN_VERSION) : null;
   if (wantsJson(request)) return jsonResponse(verdictJson(v, signed), 200);
-  return html(renderVerdict(got.receipt, v, { signed }));
+  return html(renderVerdict(got.receipt, v, { expected: got.expected, signed }));
 }
 
 async function handleVerifyGet(request: Request, url: URL, signer: Signer | null, log: RequestLog): Promise<Response> {

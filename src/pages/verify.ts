@@ -37,10 +37,12 @@ function form(opts: { expected?: string; prefill?: string; problem?: string }): 
   const expected = opts.expected
     ? `<p class="note">this address names a receipt by its digest: <code>sha256:${escapeHtml(opts.expected)}</code>. paste the receipt and the page checks that the bytes match before it shows the verdict.</p>`
     : "";
+  // The digest travels with the post so the verdict page can say whether the bytes match it.
+  const expectedField = opts.expected ? `<input type="hidden" name="expected" value="${escapeHtml(opts.expected)}">` : "";
   const problem = opts.problem ? `<p class="note" role="alert">${escapeHtml(opts.problem)}</p>` : "";
   return `
 <form method="post" action="/verify" aria-labelledby="paste-label">
-  ${expected}${problem}
+  ${expected}${problem}${expectedField}
   <label class="label" id="paste-label" for="receipt">paste the receipt json</label>
   <textarea id="receipt" name="receipt" spellcheck="false" autocomplete="off" placeholder='{"receipt_type": "https://bernstein.run/attestations/run-receipt/v1", "run_id": ...}' required>${escapeHtml(opts.prefill ?? "")}</textarea>
   <div class="formrow">

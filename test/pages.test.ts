@@ -117,6 +117,33 @@ describe("/verify", () => {
     expect(await res.text()).toContain("not the <code>sha256:" + "0".repeat(64));
   });
 
+  it("GET /verify/<digest> carries the digest into the form as a hidden field", async () => {
+    const digest = vector.canonical.receipt_sha256;
+    const body = await (await req(`/verify/${digest}`)).text();
+    expect(body).toContain(`<input type="hidden" name="expected" value="${digest}">`);
+    expect(await (await req("/verify")).text()).not.toContain('name="expected"');
+  });
+
+  it("POST with an expected digest binds the verdict to the address", async () => {
+    const post = (expected: string) => req("/verify", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ receipt, expected }).toString(),
+    });
+    const wrong = await post("0".repeat(64));
+    expect(wrong.status).toBe(200);
+    expect(await wrong.text()).toContain("not the <code>sha256:" + "0".repeat(64));
+    const right = await post(vector.canonical.receipt_sha256);
+    expect(right.status).toBe(200);
+    expect(await right.text()).not.toContain("not the");
+    // A value that is not a digest is ignored rather than echoed.
+    const junk = await post("<script>");
+    expect(junk.status).toBe(200);
+    const junkBody = await junk.text();
+    expect(junkBody).not.toContain("not the");
+    expect(junkBody).not.toContain("&lt;script&gt;");
+  });
+
   it("POST of garbage renders an unverifiable ledger, no stack trace", async () => {
     const res = await req("/verify", {
       method: "POST",
