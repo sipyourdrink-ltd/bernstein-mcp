@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { VERIFIER_URL } from "../src/verify/attest.js";
 
-const read = (name: string) => JSON.parse(readFileSync(new URL(`../${name}`, import.meta.url), "utf8"));
+const read = (name: string) => JSON.parse(readFileSync(fileURLToPath(new URL(`../${name}`, import.meta.url).href), "utf8"));
 
 describe("registry manifest", () => {
   it("server.json advertises this deployment and tracks the package version", () => {
