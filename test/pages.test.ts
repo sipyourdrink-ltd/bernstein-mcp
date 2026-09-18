@@ -117,6 +117,33 @@ describe("/verify", () => {
     expect(await res.text()).toContain("not the <code>sha256:" + "0".repeat(64));
   });
 
+  it("GET /verify/<digest> carries the digest into the form as a hidden field", async () => {
+    const digest = vector.canonical.receipt_sha256;
+    const body = await (await req(`/verify/${digest}`)).text();
+    expect(body).toContain(`<input type="hidden" name="expected" value="${digest}">`);
+    expect(await (await req("/verify")).text()).not.toContain('name="expected"');
+  });
+
+  it("POST with an expected digest binds the verdict to the address", async () => {
+    const post = (expected: string) => req("/verify", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ receipt, expected }).toString(),
+    });
+    const wrong = await post("0".repeat(64));
+    expect(wrong.status).toBe(200);
+    expect(await wrong.text()).toContain("not the <code>sha256:" + "0".repeat(64));
+    const right = await post(vector.canonical.receipt_sha256);
+    expect(right.status).toBe(200);
+    expect(await right.text()).not.toContain("not the");
+    // A value that is not a digest is ignored rather than echoed.
+    const junk = await post("<script>");
+    expect(junk.status).toBe(200);
+    const junkBody = await junk.text();
+    expect(junkBody).not.toContain("not the");
+    expect(junkBody).not.toContain("&lt;script&gt;");
+  });
+
   it("POST of garbage renders an unverifiable ledger, no stack trace", async () => {
     const res = await req("/verify", {
       method: "POST",
@@ -164,5 +191,36 @@ describe("/verify", () => {
 
   it("PUT is 405", async () => {
     expect((await req("/verify", { method: "PUT" })).status).toBe(405);
+  });
+});
+
+describe("GET /verify?from=", () => {
+  const from = "https://raw.githubusercontent.com/o/r/main/.bernstein/receipts/s.json";
+  it("renders a page that fetches the receipt in the browser and submits it", async () => {
+    const res = await req(`/verify/${"ab".repeat(32)}?from=${encodeURIComponent(from)}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-security-policy")).toContain("connect-src https:");
+    const body = await res.text();
+    expect(body).toContain('data-from="' + from + '"');
+    expect(body).toContain("raw.githubusercontent.com");
+    expect(body).toContain("<script>");
+    expect(body).toContain("requestSubmit");
+    expect(body).not.toContain("innerHTML");
+    expect(body).toContain(`sha256:${"ab".repeat(32)}`);
+  });
+  it("refuses anything but https and keeps the plain form", async () => {
+    for (const bad of ["http://x/r.json", "ftp://x", "javascript:alert(1)", "not a url"]) {
+      const res = await req(`/verify?from=${encodeURIComponent(bad)}`);
+      const body = await res.text();
+      expect(res.status).toBe(200);
+      expect(body).toContain("must be an https URL");
+      expect(body).not.toContain("<script>");
+      expect(res.headers.get("content-security-policy")).not.toContain("connect-src");
+    }
+  });
+  it("the plain form still carries no script and no connect-src", async () => {
+    const res = await req("/verify");
+    expect(res.headers.get("content-security-policy")).not.toContain("connect-src");
+    expect(await res.text()).not.toContain("<script>");
   });
 });

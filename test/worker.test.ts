@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import worker, { type Env } from "../src/index.js";
 import { MAX_BODY_BYTES } from "../src/limits.js";
 import { receiptString } from "./helpers.js";
+import { verifyReceipt } from "../src/verify/receipt.js";
+
+/** The frozen session-valid vector's receipt text (Task 11), the same shape `bernstein-attest` writes. */
+function sessionReceiptText(): string {
+  return JSON.parse(readFileSync("vectors/session/session-valid.json", "utf8")).input.receipt_text;
+}
 
 const env = {} as Env;
 const ctx = {
@@ -234,6 +241,36 @@ describe("request log line", () => {
         expect(JSON.stringify(l)).not.toContain("203.0.113.9");
         expect(JSON.stringify(l)).not.toContain("run_id");
       }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("logs the producer family of a verified receipt, never the raw label", async () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((line: string) => void lines.push(String(line)));
+    try {
+      const sessionReceipt = sessionReceiptText();
+      const res = await worker.fetch(
+        new Request("https://mcp.bernstein.run/verify", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: "receipt=" + encodeURIComponent(sessionReceipt),
+        }),
+        env,
+        ctx,
+      );
+      expect(res.status).toBe(200);
+      const logs = lines.map((l) => JSON.parse(l) as Record<string, unknown>).filter((l) => l.evt === "mcp.request");
+      const line = logs.find((l) => l.route === "/verify" && l.method === "POST");
+      expect(line?.producer).toBe("bernstein-attest");
+      // The family alone ("bernstein-attest") is expected and fine; the log
+      // must not carry the version or the full raw label the receipt embeds.
+      const producerVersion = (JSON.parse(sessionReceipt).producer as { version: string }).version;
+      const producerLabel = (await verifyReceipt(sessionReceipt)).summary?.producer;
+      const serialized = JSON.stringify(line);
+      expect(serialized).not.toContain(producerVersion);
+      if (producerLabel) expect(serialized).not.toContain(producerLabel);
     } finally {
       spy.mockRestore();
     }

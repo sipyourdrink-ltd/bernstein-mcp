@@ -1,0 +1,1 @@
+{"session_id":"cc-sess-1","transcript_path":"/Users/x/.claude/projects/p/t.jsonl","cwd":"/work/demo","permission_mode":"acceptEdits","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"/usr/bin/git status --short","description":"Show status"},"tool_response":{"stdout":" M src/app.ts\n","stderr":"","interrupted":false},"tool_use_id":"toolu_01B"}

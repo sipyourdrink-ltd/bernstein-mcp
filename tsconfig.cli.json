@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "types": ["@cloudflare/workers-types", "node"], "lib": ["ES2022"] },
+  "include": ["cli/**/*", "test/cli/**/*", "src/verify/**/*", "src/limits.ts"]
+}

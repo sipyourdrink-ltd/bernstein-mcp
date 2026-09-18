@@ -1,0 +1,30 @@
+{
+  "name": "session-segmented-2",
+  "description": "second segment of a 2001-row session; its first row names the first segment's receipt",
+  "input": {
+    "receipt_text": "{\n \"receipt_type\": \"https://bernstein.run/attestations/run-receipt/v1\",\n \"schema_version\": \"1.1.0\",\n \"run_id\": \"cc-sess-1-s2\",\n \"created_at\": 1700002004,\n \"producer\": {\n  \"name\": \"bernstein-attest\",\n  \"version\": \"0.2.0\",\n  \"agent\": \"claude-code\"\n },\n \"journal\": {\n  \"event_count\": 3,\n  \"events\": [\n   {\n    \"event\": \"segment_started\",\n    \"event_hash\": \"d685fe4f5e654df5c780a4a2e1f572693ea29177de097f440bff40a7ba9b30e2\",\n    \"index\": 0,\n    \"payload_hash\": \"2d7850229009dce7ca7552f90a880768e22642f5792ad1766149527371ba745e\",\n    \"prev_hash\": \"\",\n    \"prev_receipt_sha256\": \"61ba15d816836f793db3d7a98d2f3e475552266500642a7c9a85b26dbb9089b7\",\n    \"segment\": 2,\n    \"ts\": 1700002001\n   },\n   {\n    \"command_head\": \"git\",\n    \"event\": \"tool_call\",\n    \"event_hash\": \"bd5ec48e890902d8448e1df75585419dcd37f80dcc81c340503573b7e3c9e83b\",\n    \"index\": 1,\n    \"input_sha256\": \"8c0020b26a291f65d0eac91b75d8299cfbd77660ef966f6a7a95ce1bbccb52e4\",\n    \"ok\": true,\n    \"output_sha256\": \"f79cd844288bd0eaa6655213307c526ebd2129d9503478f342fbf01cd4db036c\",\n    \"payload_hash\": \"e76e771d73a237a24012d166a54f7f34457fba6bfb0e19e0df96bbc761678bb0\",\n    \"prev_hash\": \"d685fe4f5e654df5c780a4a2e1f572693ea29177de097f440bff40a7ba9b30e2\",\n    \"tool\": \"Bash\",\n    \"tool_use_id\": \"t1999\",\n    \"ts\": 1700002002\n   },\n   {\n    \"event\": \"turn_ended\",\n    \"event_hash\": \"5525e9e015ff0d61b7353fdbc2aff4dc72f1fc1e6d309613d4274b23bcca446e\",\n    \"index\": 2,\n    \"last_message_sha256\": \"8c0d070e2201ebe5ca00aef68d3d2e2cebbe7299e5da1760b99004de34896cc8\",\n    \"payload_hash\": \"cd068e04cdae1dec8e1477bc8a2095d5083737553c651735b7b093a253ac4198\",\n    \"prev_hash\": \"bd5ec48e890902d8448e1df75585419dcd37f80dcc81c340503573b7e3c9e83b\",\n    \"ts\": 1700002003,\n    \"turn\": 1\n   }\n  ],\n  \"head_hash\": \"5525e9e015ff0d61b7353fdbc2aff4dc72f1fc1e6d309613d4274b23bcca446e\"\n },\n \"spine\": {\n  \"entry_count\": 0,\n  \"entries\": [],\n  \"head_hash\": \"\"\n },\n \"subject\": {\n  \"name\": \"session-receipt-cc-sess-1-s2\",\n  \"digest\": {\n   \"sha256\": \"d7524076fa9090000699fa8c0ec288a2eef050cef610524e7a33ea64c814963e\"\n  }\n },\n \"signing\": {\n  \"alg\": \"EdDSA\",\n  \"key_id\": \"bernstein-attest-e3cacd5c\",\n  \"payload_type\": \"application/vnd.bernstein.run-receipt+json\",\n  \"public_key_jwk\": {\n   \"kty\": \"OKP\",\n   \"crv\": \"Ed25519\",\n   \"x\": \"11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo\",\n   \"kid\": \"kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k\",\n   \"alg\": \"EdDSA\"\n  },\n  \"signature_b64\": \"iTLbd4ee+PbRS0+YyJh+wYM049K42KKFLSu7lKJGDi5oGxmup0z9e2mcE87ParSqFZ4ny2lDlDlqpYipjz06Cw==\"\n }\n}\n"
+  },
+  "expected": {
+    "verdict": "valid",
+    "failing_check": null,
+    "divergent_step": null,
+    "receipt_sha256": "0a38fb19893da869b9ccbae997ed31a0b33833fb2571cbcf054ed0aba73a3582",
+    "summary": {
+      "run_id": "cc-sess-1-s2",
+      "schema_version": "1.1.0",
+      "hash_profile": "py-json-v1",
+      "journal_events": 3,
+      "spine_entries": 0,
+      "audit_events": null,
+      "key_id": "kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k",
+      "producer": "bernstein-attest 0.2.0 (claude-code)",
+      "tool_calls": 1
+    },
+    "first_event": {
+      "event": "segment_started",
+      "segment": 2,
+      "prev_receipt_sha256": "61ba15d816836f793db3d7a98d2f3e475552266500642a7c9a85b26dbb9089b7"
+    },
+    "segment_1_sha256": "61ba15d816836f793db3d7a98d2f3e475552266500642a7c9a85b26dbb9089b7"
+  }
+}

@@ -1,0 +1,1 @@
+{"session_id":"cc-sess-1","transcript_path":"/Users/x/.claude/projects/p/t.jsonl","cwd":"/work/demo","permission_mode":"acceptEdits","hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{"file_path":"/work/demo/src/app.ts","content":"export const a = 1;\n"},"tool_response":{"filePath":"/work/demo/src/app.ts","type":"create"},"tool_use_id":"toolu_01A","duration_ms":12}

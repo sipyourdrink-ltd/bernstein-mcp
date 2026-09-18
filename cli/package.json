@@ -1,0 +1,11 @@
+{
+  "name": "bernstein-attest",
+  "version": "0.2.0",
+  "description": "Signed, offline-verifiable receipts for Claude Code and Codex CLI sessions.",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/sipyourdrink-ltd/bernstein-mcp" },
+  "homepage": "https://mcp.bernstein.run",
+  "bin": { "bernstein-attest": "dist/attest.js" },
+  "files": ["dist"],
+  "engines": { "node": ">=20" }
+}

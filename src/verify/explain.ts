@@ -2,7 +2,19 @@
 // explain_receipt tool and the /verify page. No new facts: everything
 // here is read off the ReceiptVerification.
 
-import type { ReceiptVerification } from "./receipt.js";
+import type { ReceiptSummary, ReceiptVerification } from "./receipt.js";
+
+const AGENT_NAMES: Record<string, string> = { "claude-code": "Claude Code", codex: "Codex CLI" };
+
+/** One extra sentence for a session receipt (bernstein-attest); null when the receipt has no tool calls to report. */
+function sessionLine(s: ReceiptSummary): string | null {
+  if (s.tool_calls === null || !s.producer) return null;
+  const agent = s.producer.match(/\(([^)]+)\)$/)?.[1] ?? "an agent";
+  const label = s.producer.replace(/\s*\([^)]*\)$/, "");
+  const n = s.tool_calls;
+  const m = s.spine_entries;
+  return `Session receipt from ${AGENT_NAMES[agent] ?? agent}, written by ${label}: ${n} tool call${n === 1 ? "" : "s"}, ${m} file${m === 1 ? "" : "s"} touched.`;
+}
 
 const WHAT_EACH_CHECK_MEANS: Record<string, string> = {
   schema: "the document has the shape of a bernstein run receipt",
@@ -34,6 +46,8 @@ export function explainReceipt(v: ReceiptVerification): string {
       `Run ${s.run_id} (schema ${s.schema_version}, ${s.hash_profile}) embeds ${s.journal_events} journal row${s.journal_events === 1 ? "" : "s"}, ` +
         `${s.spine_entries} lineage entr${s.spine_entries === 1 ? "y" : "ies"} and ${audit}.`,
     );
+    const session = sessionLine(s);
+    if (session) lines.push(session);
   }
 
   if (v.verdict === "valid") {

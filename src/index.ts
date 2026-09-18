@@ -3,6 +3,7 @@ import { createServer, BERNSTEIN_VERSION, type RequestTrace } from "./mcp.js";
 import { renderHome } from "./pages/home.js";
 import { base64UrlDecode, renderVerdict, renderVerifyForm, verdictJson } from "./pages/verify.js";
 import { verifyReceiptBounded } from "./verify/bounded.js";
+import { producerFamily } from "./verify/receipt.js";
 import { KEYS_PATH, loadSigner, signVerdict, type Signer } from "./verify/attest.js";
 import frauncesLatin from "../fonts/fraunces-latin.woff2";
 import frauncesLatinItalic from "../fonts/fraunces-latin-italic.woff2";
@@ -143,6 +144,7 @@ async function handleMcpPost(request: Request, signer: Signer | null, log: Reque
       parsedBody: parsed.value,
     });
     if (trace.verdict) log.verdict = trace.verdict;
+    if (trace.producer) log.producer = trace.producer;
     return withStandardHeaders(response);
   } catch {
     // Never leak a stack trace: any unexpected failure becomes a JSON-RPC
@@ -159,7 +161,7 @@ const FONTS: Record<string, ArrayBuffer> = {
   "/fonts/jetbrains-mono-latin.woff2": jetbrainsMonoLatin,
 };
 
-function html(markup: string, cacheControl = "no-store"): Response {
+function html(markup: string, cacheControl = "no-store", opts: { connect?: boolean } = {}): Response {
   const response = withStandardHeaders(
     new Response(markup, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }),
   );
@@ -167,9 +169,15 @@ function html(markup: string, cacheControl = "no-store"): Response {
   // A share link carries the receipt in its query string; no referrer may
   // ever leak it to a linked site. Inline script/style are the page's own.
   response.headers.set("referrer-policy", "no-referrer");
+  // `connect-src https:` is only added for the one page that loads a
+  // receipt from an `https://` URL in the visitor's own browser (see
+  // handleVerifyGet's `from` branch); every other page keeps the tighter
+  // default that permits no outbound connection at all.
   response.headers.set(
     "content-security-policy",
-    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src 'self'; img-src data:; " +
+      (opts.connect ? "connect-src https:; " : "") +
+      "form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
   );
   return response;
 }
@@ -181,15 +189,21 @@ function wantsJson(request: Request): boolean {
   return accept.includes("application/json") && !accept.includes("text/html");
 }
 
-/** Read the receipt out of a form post, a JSON post, or a raw text post. */
-async function receiptFromPost(request: Request): Promise<{ ok: true; receipt: string } | { ok: false; status: number; message: string }> {
+/**
+ * Read the receipt out of a form post, a JSON post, or a raw text post. A form
+ * post may also carry `expected`, the digest from a /verify/<digest> address;
+ * anything that is not a digest is dropped.
+ */
+async function receiptFromPost(request: Request): Promise<{ ok: true; receipt: string; expected?: string } | { ok: false; status: number; message: string }> {
   const body = await readBodyWithLimit(request, MAX_BODY_BYTES);
   if (!body.ok) return { ok: false, status: 413, message: "Request body exceeds the 1 MB limit." };
   const type = request.headers.get("content-type") ?? "";
   if (type.startsWith("application/x-www-form-urlencoded")) {
-    const receipt = new URLSearchParams(body.text).get("receipt");
+    const form = new URLSearchParams(body.text);
+    const receipt = form.get("receipt");
     if (receipt === null) return { ok: false, status: 400, message: "Form field `receipt` is missing." };
-    return { ok: true, receipt };
+    const expected = form.get("expected");
+    return expected !== null && SHA256_HEX.test(expected) ? { ok: true, receipt, expected } : { ok: true, receipt };
   }
   if (type.startsWith("application/json")) {
     // Either {"receipt": <string|object>} or the receipt object itself.
@@ -213,15 +227,29 @@ async function handleVerifyPost(request: Request, signer: Signer | null, log: Re
   }
   const v = await verifyReceiptBounded(got.receipt);
   log.verdict = v.verdict;
+  if (v.summary) log.producer = producerFamily(v.summary.producer);
   const signed = signer ? await signVerdict(v, signer, BERNSTEIN_VERSION) : null;
   if (wantsJson(request)) return jsonResponse(verdictJson(v, signed), 200);
-  return html(renderVerdict(got.receipt, v, { signed }));
+  return html(renderVerdict(got.receipt, v, { expected: got.expected, signed }));
 }
 
 async function handleVerifyGet(request: Request, url: URL, signer: Signer | null, log: RequestLog): Promise<Response> {
   const rest = url.pathname.slice("/verify".length).replace(/^\//, "");
   if (rest !== "" && !SHA256_HEX.test(rest)) return notFound();
   const expected = rest || undefined;
+  const from = url.searchParams.get("from");
+  if (from !== null) {
+    let parsed: URL | null = null;
+    try {
+      parsed = new URL(from);
+    } catch {
+      parsed = null;
+    }
+    if (!parsed || parsed.protocol !== "https:") {
+      return html(renderVerifyForm({ expected, problem: "The from parameter must be an https URL." }));
+    }
+    return html(renderVerifyForm({ expected, from: parsed.toString() }), "no-store", { connect: true });
+  }
   const r = url.searchParams.get("r");
   if (r === null) return html(renderVerifyForm({ expected }));
   const receipt = base64UrlDecode(r);
@@ -249,6 +277,7 @@ export interface RequestLog {
   rpc?: string;
   tool?: string;
   verdict?: string;
+  producer?: "bernstein" | "bernstein-attest" | "other";
   client?: string;
   client_version?: string;
   protocol?: string;
