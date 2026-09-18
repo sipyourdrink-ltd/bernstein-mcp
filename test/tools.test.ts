@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import worker, { type Env } from "../src/index.js";
 import { MAX_CHAIN_ENTRIES } from "../src/limits.js";
 import { receiptString, vectorText } from "./helpers.js";
+import { parseJson, pyDumps, type JsonObject } from "../src/verify/pyjson.js";
 
 const env = {} as Env;
 const ctx = { waitUntil: () => undefined, passThroughOnException: () => undefined } as unknown as ExecutionContext;
@@ -135,6 +136,36 @@ describe("verify_chain", () => {
     expect(out.kind).toBe("spine");
     expect(out.intact).toBe(true);
     expect(out.head).toMatch(/^sha256:/);
+  });
+
+  it("takes the file text and hashes rows byte-exactly", async () => {
+    // invalid-reordered swaps rows at step 20; row 7 carries a float spelled
+    // -0.0, which a parsed array cannot preserve. The text form reports the
+    // real break, the parsed form trips over the spelling first.
+    const text = vectorText("invalid-reordered");
+    const input = (parseJson(text) as JsonObject)["input"] as JsonObject;
+    const rows = (input["journal"] as JsonObject)["events"] as JsonObject[];
+    const jsonl = rows.map((r) => pyDumps(r)).join("\n") + "\n";
+    const exact = await call("verify_chain", { entries: jsonl });
+    expect(exact.kind).toBe("journal");
+    expect(exact.entries).toBe(rows.length);
+    expect(exact.divergent_index).toBe(20);
+    const asArray = await call("verify_chain", { entries: "[" + rows.map((r) => pyDumps(r)).join(",") + "]" });
+    expect(asArray.divergent_index).toBe(20);
+    const lossy = await call("verify_chain", { entries: JSON.parse(text).input.journal.events });
+    expect(lossy.divergent_index).toBe(7);
+  });
+
+  it("refuses text it cannot parse or that exceeds the row cap", async () => {
+    const bad = await call("verify_chain", { entries: '{"a": 1}\nnot json' });
+    expect(bad.intact).toBe(false);
+    expect(bad.detail).toMatch(/^line 2 is not valid JSON/);
+    const row = '{"event": "x", "prev_hash": "", "payload_hash": "", "event_hash": "", "index": 0}';
+    const many = Array.from({ length: MAX_CHAIN_ENTRIES + 1 }, () => row).join("\n");
+    const capped = await call("verify_chain", { entries: many });
+    expect(capped.intact).toBe(false);
+    expect(capped.entries).toBe(MAX_CHAIN_ENTRIES + 1);
+    expect(capped.detail).toMatch(/more than 2000 rows/);
   });
 
   it("honours an explicit kind", async () => {

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import worker, { type Env } from "../src/index.js";
 import { MAX_BODY_BYTES } from "../src/limits.js";
+import { receiptString } from "./helpers.js";
 
 const env = {} as Env;
 const ctx = {
@@ -204,5 +205,38 @@ describe("POST /mcp — rate limit binding", () => {
     const res = await worker.fetch(req("/healthz"), limitedEnv, ctx);
     expect(res.status).toBe(200);
     expect(l.keys).toEqual([]);
+  });
+});
+
+describe("request log line", () => {
+  it("records route, rpc method, tool, verdict and client — never the body", async () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((line: string) => void lines.push(String(line)));
+    try {
+      const receipt = receiptString("valid-short-with-audit-range");
+      const rpc = (method: string, params: unknown) =>
+        new Request("https://mcp.bernstein.run/mcp", {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "cf-connecting-ip": "203.0.113.9" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        });
+      await worker.fetch(rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test-client", version: "9.9" } }), env, ctx);
+      await worker.fetch(rpc("tools/call", { name: "verify_receipt", arguments: { receipt } }), env, ctx);
+      await worker.fetch(new Request("https://mcp.bernstein.run/verify", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ receipt }) }), env, ctx);
+      await worker.fetch(new Request("https://mcp.bernstein.run/verify/" + "0".repeat(64)), env, ctx);
+      const logs = lines.map((l) => JSON.parse(l) as Record<string, unknown>).filter((l) => l.evt === "mcp.request");
+      expect(logs).toHaveLength(4);
+      expect(logs[0]).toMatchObject({ route: "/mcp", method: "POST", status: 200, rpc: "initialize", client: "test-client", client_version: "9.9", protocol: "2025-06-18" });
+      expect(logs[1]).toMatchObject({ route: "/mcp", rpc: "tools/call", tool: "verify_receipt", verdict: "valid" });
+      expect(logs[2]).toMatchObject({ route: "/verify", method: "POST", verdict: "valid" });
+      expect(logs[3]).toMatchObject({ route: "/verify/<sha256>", method: "GET", status: 200 });
+      for (const l of logs) {
+        expect(typeof l.ms).toBe("number");
+        expect(JSON.stringify(l)).not.toContain("203.0.113.9");
+        expect(JSON.stringify(l)).not.toContain("run_id");
+      }
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

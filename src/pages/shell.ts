@@ -99,6 +99,7 @@ textarea:focus{border-color:var(--rule-strong)}
 .btn{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--bg-paper);background:var(--ink);border:1px solid var(--ink);border-radius:4px;padding:10px 18px;cursor:pointer}
 .btn:hover{background:var(--accent);border-color:var(--accent)}
 .hint{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft)}
+.signed{margin-top:18px;border-top:1px solid var(--rule);padding-top:12px}.signed summary{cursor:pointer;list-style:none}.signed summary::-webkit-details-marker{display:none}.envelope{font-family:var(--font-mono);font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-all;color:var(--ink-soft);background:transparent;margin:0;max-height:260px;overflow:auto}
 .note{border-left:2px solid var(--accent);padding:2px 0 2px 14px;color:var(--ink-soft);font-size:14px;max-width:70ch;margin:0 0 28px}
 footer{padding:28px 0 40px;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);display:flex;gap:18px;flex-wrap:wrap}
 footer a{text-decoration:none}

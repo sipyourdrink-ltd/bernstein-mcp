@@ -10,7 +10,7 @@
 // the one the receipt embeds (trust-on-first-use), the audit-range HMACs
 // need the producing install's key and are reported as unverifiable.
 
-import { auditRangeHead, sha256Hex, sha256HexOfString, walkAuditLinkage, walkJournal, walkSpine } from "./chains.js";
+import { auditRangeHead, sha256Hex, sha256HexLarge, sha256HexOfString, walkAuditLinkage, walkJournal, walkSpine } from "./chains.js";
 import { JsonNumber, fromParsed, jcs, parseJson, pyDumps, utf8, type JsonObject, type JsonValue } from "./pyjson.js";
 
 export const RECEIPT_TYPE = "https://bernstein.run/attestations/run-receipt/v1";
@@ -79,13 +79,13 @@ function asInt(v: JsonValue | undefined): number | null {
   return v instanceof JsonNumber && v.isInteger ? v.value : null;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
+export function bytesToBase64(bytes: Uint8Array): string {
   let s = "";
   for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s);
 }
 
-function base64ToBytes(text: string, urlsafe: boolean): Uint8Array {
+export function base64ToBytes(text: string, urlsafe: boolean): Uint8Array {
   let t = urlsafe ? text.replace(/-/g, "+").replace(/_/g, "/") : text;
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(t)) throw new Error("not base64");
   t += "=".repeat((4 - (t.length % 4)) % 4);
@@ -190,7 +190,7 @@ export async function verifyReceipt(input: string | unknown): Promise<ReceiptVer
     add("schema", "fail", `receipt is not valid JSON: ${(exc as Error).message}`);
     return done({ receipt_sha256: sha256HexOfString(typeof input === "string" ? input : "") });
   }
-  const receiptSha256 = sha256HexOfString(pyDumps(receipt) + "\n");
+  const receiptSha256 = await sha256HexLarge(utf8(pyDumps(receipt) + "\n"));
 
   // -- schema ---------------------------------------------------------------
   if (!isObject(receipt)) {
@@ -280,7 +280,7 @@ export async function verifyReceipt(input: string | unknown): Promise<ReceiptVer
     add("audit_range_hmac", "skipped", "audit_range malformed");
   } else {
     auditEvents = audit["events"] as JsonObject[];
-    const recomputed = auditRangeHead(auditEvents);
+    const recomputed = await auditRangeHead(auditEvents);
     if (audit["head_sha256"] === recomputed && asInt(audit["event_count"]) === auditEvents.length) {
       add("audit_range_head", "ok");
     } else {
@@ -388,6 +388,36 @@ export interface ChainVerification {
   head: string;
   divergent_index: number | null;
   detail: string;
+}
+
+/**
+ * Rows given as text: a JSON array, or one JSON object per line (JSONL, the
+ * on-disk shape of a journal or spine). Parsing here keeps every number's
+ * spelling, so the hashes recompute exactly as the producer wrote them.
+ */
+export function parseChainText(text: string): { ok: true; rows: JsonValue[] } | { ok: false; detail: string } {
+  const trimmed = text.trim();
+  if (trimmed === "") return { ok: true, rows: [] };
+  if (trimmed.startsWith("[")) {
+    try {
+      const v = parseJson(trimmed);
+      return Array.isArray(v) ? { ok: true, rows: v } : { ok: false, detail: "text is not a JSON array" };
+    } catch (e) {
+      return { ok: false, detail: `text is not valid JSON: ${(e as Error).message}` };
+    }
+  }
+  const rows: JsonValue[] = [];
+  const lines = trimmed.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === "") continue;
+    try {
+      rows.push(parseJson(line));
+    } catch (e) {
+      return { ok: false, detail: `line ${i + 1} is not valid JSON: ${(e as Error).message}` };
+    }
+  }
+  return { ok: true, rows };
 }
 
 /** Detect the row shape and walk it: journal rows, spine entries, or audit events. */

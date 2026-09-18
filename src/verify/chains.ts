@@ -22,6 +22,21 @@ export function sha256HexOfString(s: string): string {
   return sha256Hex(utf8(s));
 }
 
+// Rows are a few hundred bytes each and the pure-JS digest wins there (a
+// native call per row costs more in scheduling than it saves). The receipt
+// as a whole and an audit range's JSONL run to hundreds of KB, where the
+// runtime's native digest is several times faster; above this size we use it.
+const NATIVE_DIGEST_MIN_BYTES = 16 * 1024;
+
+/** SHA-256 hex of a large buffer, using the native digest when it pays off. */
+export async function sha256HexLarge(data: Uint8Array): Promise<string> {
+  if (data.byteLength < NATIVE_DIGEST_MIN_BYTES || typeof crypto === "undefined" || !crypto.subtle) {
+    return sha256Hex(data);
+  }
+  const digest = await crypto.subtle.digest("SHA-256", data as BufferSource);
+  return bytesToHex(new Uint8Array(digest));
+}
+
 export interface ChainWalk {
   /** Recomputed head (last row's hash), or the genesis value for no rows. */
   head: string;
@@ -159,10 +174,10 @@ export function walkSpine(rows: JsonObject[]): ChainWalk {
 }
 
 /** `head_sha256` of an audit range: SHA-256 over canonical JSONL of the events. */
-export function auditRangeHead(events: JsonValue[]): string {
-  if (events.length === 0) return sha256Hex(new Uint8Array());
+export function auditRangeHead(events: JsonValue[]): Promise<string> {
+  if (events.length === 0) return sha256HexLarge(new Uint8Array());
   const jsonl = events.map((e) => pyDumps(e)).join("\n") + "\n";
-  return sha256HexOfString(jsonl);
+  return sha256HexLarge(utf8(jsonl));
 }
 
 const AUDIT_GENESIS_HMAC = "0".repeat(64);

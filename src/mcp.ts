@@ -7,7 +7,8 @@ import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES } from "./limits.js";
 import { explainReceipt } from "./verify/explain.js";
 import { fromParsed, type JsonValue } from "./verify/pyjson.js";
 import { verifyReceiptBounded } from "./verify/bounded.js";
-import { CHECK_ORDER, verifyChain } from "./verify/receipt.js";
+import { CHECK_ORDER, parseChainText, verifyChain, type ChainVerification } from "./verify/receipt.js";
+import { KEYS_PATH, signVerdict, VERIFIER_URL, type Signer } from "./verify/attest.js";
 
 export const BERNSTEIN_VERSION = bernsteinTagRaw.trim();
 
@@ -15,29 +16,30 @@ const PRESETS = presetsJson.presets as Record<string, Record<string, unknown>>;
 const PRESET_NAMES = Object.keys(PRESETS).sort();
 const ADAPTERS = adaptersJson.adapters as { name: string; binary: string; module: string }[];
 
+/** What one request did, for the request log line (src/index.ts). */
+export interface RequestTrace {
+  tool?: string;
+  verdict?: string;
+}
+
+export interface ServerOptions {
+  /** This deployment's verdict-signing key; null → verdicts go out unsigned. */
+  signer: Signer | null;
+  /** Filled in by the tool handlers; the caller logs it. */
+  trace?: RequestTrace;
+}
+
 /**
  * Builds one McpServer per request (stateless mode — see src/index.ts).
- * Logs exactly one line on `initialize`: {evt, client, client_version}.
- * Nothing else is logged (no IP, no body, no receipt contents).
+ * Nothing is logged here: the request log line is written by the Worker
+ * entry point from the parsed JSON-RPC envelope plus `opts.trace`.
  */
-export function createServer(): McpServer {
+export function createServer(opts: ServerOptions = { signer: null }): McpServer {
   const server = new McpServer({
     name: "bernstein",
     version: BERNSTEIN_VERSION,
   });
-
-  server.server.oninitialized = () => {
-    const clientInfo = server.server.getClientVersion();
-    console.log(
-      JSON.stringify({
-        evt: "mcp.initialize",
-        client: clientInfo?.name,
-        client_version: clientInfo?.version,
-      }),
-    );
-  };
-
-  registerTools(server);
+  registerTools(server, opts);
   return server;
 }
 
@@ -64,7 +66,11 @@ const receiptInput = {
     ),
 };
 
-export function registerTools(server: McpServer): void {
+function chainRefused(kind: ChainVerification["kind"] | undefined, entries: number, detail: string): ChainVerification {
+  return { kind: kind ?? "journal", intact: false, entries, head: "", divergent_index: null, detail };
+}
+
+export function registerTools(server: McpServer, opts: ServerOptions = { signer: null }): void {
   server.registerTool(
     "server_info",
     {
@@ -77,6 +83,11 @@ export function registerTools(server: McpServer): void {
           max_body_bytes: z.number().int().positive(),
           max_chain_entries: z.number().int().positive(),
         }),
+        verdict_key: z
+          .object({ kty: z.string(), crv: z.string(), x: z.string(), kid: z.string(), use: z.string(), alg: z.string() })
+          .nullable()
+          .describe("Public Ed25519 JWK this deployment signs verdicts with; also at keys_url."),
+        keys_url: z.string(),
       },
     },
     async () =>
@@ -84,6 +95,8 @@ export function registerTools(server: McpServer): void {
         name: "bernstein",
         version: BERNSTEIN_VERSION,
         limits: { max_body_bytes: MAX_BODY_BYTES, max_chain_entries: MAX_CHAIN_ENTRIES },
+        verdict_key: opts.signer?.publicJwk ?? null,
+        keys_url: `${VERIFIER_URL}${KEYS_PATH}`,
       }),
   );
 
@@ -95,7 +108,8 @@ export function registerTools(server: McpServer): void {
         "Recompute every hash chain a bernstein run receipt embeds (journal, lineage spine, optional audit range), " +
         "rebuild the signed subject from the recomputed heads, and check the Ed25519 signature with the key the " +
         "receipt carries. Needs no secret and reads nothing but the receipt. Returns the verdict, the first failing " +
-        "check, and one line per check.",
+        "check, one line per check, and the same verdict as a DSSE envelope signed by this verifier's Ed25519 key " +
+        "(public key at keys_url) so the outcome can be kept and re-checked offline.",
       inputSchema: receiptInput,
       outputSchema: {
         verdict: verdictSchema,
@@ -115,12 +129,23 @@ export function registerTools(server: McpServer): void {
           })
           .nullable(),
         verify_url: z.string().nullable(),
+        signed_verdict: z
+          .object({
+            payloadType: z.string(),
+            payload: z.string(),
+            signatures: z.array(z.object({ keyid: z.string(), sig: z.string() })),
+          })
+          .nullable()
+          .describe("DSSE envelope over the verdict statement (JCS JSON in payload), Ed25519 over the DSSE PAE."),
+        keys_url: z.string(),
         note: z.string().nullable(),
       },
     },
     async ({ receipt }) => {
       const v = await verifyReceiptBounded(receipt);
+      if (opts.trace) opts.trace.verdict = v.verdict;
       const lossy = v.input_form === "object" && v.verdict === "invalid" && v.failing_check !== "signature";
+      const signed = opts.signer ? await signVerdict(v, opts.signer, BERNSTEIN_VERSION) : null;
       return reply({
         verdict: v.verdict,
         failing_check: v.failing_check,
@@ -128,7 +153,9 @@ export function registerTools(server: McpServer): void {
         receipt_sha256: v.receipt_sha256,
         checks: v.checks,
         summary: v.summary,
-        verify_url: v.summary ? `https://mcp.bernstein.run/verify/${v.receipt_sha256}` : null,
+        verify_url: v.summary ? `${VERIFIER_URL}/verify/${v.receipt_sha256}` : null,
+        signed_verdict: signed,
+        keys_url: `${VERIFIER_URL}${KEYS_PATH}`,
         note: lossy
           ? "Passed as a parsed object: number spelling (1 vs 1.0, -0.0) is lost. If the file verifies locally, pass its contents as a string."
           : null,
@@ -153,6 +180,7 @@ export function registerTools(server: McpServer): void {
     },
     async ({ receipt }) => {
       const v = await verifyReceiptBounded(receipt);
+      if (opts.trace) opts.trace.verdict = v.verdict;
       return reply({ verdict: v.verdict, explanation: explainReceipt(v), receipt_sha256: v.receipt_sha256 });
     },
   );
@@ -162,13 +190,15 @@ export function registerTools(server: McpServer): void {
     {
       title: "Verify a hash chain",
       description:
-        "Walk a list of bernstein chain rows and recompute every link: journal rows (event_hash), lineage spine " +
-        "entries (entry_hash) or audit events (prev_hmac linkage). The row kind is detected from the fields, or " +
-        "pass `kind` explicitly. Reports the first divergent index. Rows arrive parsed, so a float spelled 1.0 " +
-        "or -0.0 in the original file cannot be told apart from an integer; verify_receipt with the file contents " +
-        "as a string is exact.",
+        "Walk bernstein chain rows and recompute every link: journal rows (event_hash), lineage spine entries " +
+        "(entry_hash) or audit events (prev_hmac linkage). The row kind is detected from the fields, or pass " +
+        "`kind` explicitly. Reports the first divergent index. Pass `entries` as the file text (a JSON array or " +
+        "one row per line, as journal.jsonl is written) for byte-exact hashing; a parsed array also works, but " +
+        "then a float spelled 1.0 or -0.0 in the file cannot be told apart from an integer.",
       inputSchema: {
-        entries: z.array(z.record(z.string(), z.unknown())).max(MAX_CHAIN_ENTRIES).describe("Rows in chain order, oldest first."),
+        entries: z
+          .union([z.array(z.record(z.string(), z.unknown())).max(MAX_CHAIN_ENTRIES), z.string().max(MAX_BODY_BYTES)])
+          .describe("Rows in chain order, oldest first: a JSON array, or the raw text of the file."),
         kind: z.enum(["journal", "spine", "audit_linkage"]).optional(),
       },
       outputSchema: {
@@ -181,8 +211,20 @@ export function registerTools(server: McpServer): void {
       },
     },
     async ({ entries, kind }) => {
-      const rows = fromParsed(entries) as JsonValue[];
-      return reply({ ...verifyChain(rows, kind) });
+      let rows: JsonValue[];
+      if (typeof entries === "string") {
+        const parsed = parseChainText(entries);
+        if (!parsed.ok) return reply({ ...chainRefused(kind, 0, parsed.detail) });
+        if (parsed.rows.length > MAX_CHAIN_ENTRIES) {
+          return reply({ ...chainRefused(kind, parsed.rows.length, `more than ${MAX_CHAIN_ENTRIES} rows; run bernstein verify locally`) });
+        }
+        rows = parsed.rows;
+      } else {
+        rows = fromParsed(entries) as JsonValue[];
+      }
+      const out = verifyChain(rows, kind);
+      if (opts.trace) opts.trace.verdict = out.intact ? "intact" : "broken";
+      return reply({ ...out });
     },
   );
 

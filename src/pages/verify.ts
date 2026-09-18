@@ -6,6 +6,7 @@
 
 import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES } from "../limits.js";
 import type { ReceiptVerification } from "../verify/receipt.js";
+import { KEYS_PATH, type SignedVerdict } from "../verify/attest.js";
 import { renderExplanation, renderLedger } from "./ledger.js";
 import { escapeHtml, page } from "./shell.js";
 
@@ -67,7 +68,19 @@ ${form(opts)}`,
   });
 }
 
-export function renderVerdict(receipt: string, v: ReceiptVerification, opts: { expected?: string } = {}): string {
+function signedBlock(signed: SignedVerdict | null): string {
+  if (!signed) return "";
+  const kid = signed.signatures[0]?.keyid ?? "";
+  const envelope = JSON.stringify(signed, null, 2);
+  return `
+    <details class="signed">
+      <summary><span class="label" style="display:inline">signed verdict</span> <span class="hint">· key ${escapeHtml(kid.slice(0, 12))}…</span></summary>
+      <p class="hint" style="margin:10px 0 8px">a dsse envelope over this ledger, signed by this verifier's ed25519 key. keep it with the receipt; check it offline against <a href="${KEYS_PATH}">${KEYS_PATH}</a>.</p>
+      <pre class="envelope"><code>${escapeHtml(envelope)}</code></pre>
+    </details>`;
+}
+
+export function renderVerdict(receipt: string, v: ReceiptVerification, opts: { expected?: string; signed?: SignedVerdict | null } = {}): string {
   const mismatch =
     opts.expected && v.receipt_sha256 && opts.expected !== v.receipt_sha256
       ? `<p class="note" role="alert">these bytes have digest <code>sha256:${escapeHtml(v.receipt_sha256)}</code>, not the <code>sha256:${escapeHtml(opts.expected)}</code> this address names. the verdict below is for what you pasted.</p>`
@@ -85,6 +98,7 @@ ${mismatch}
   <section>
     ${renderLedger(v, { link: true })}
     ${shareLink(receipt, v)}
+    ${signedBlock(opts.signed ?? null)}
   </section>
   <aside>
     <p class="label">what this means</p>
@@ -96,7 +110,7 @@ ${mismatch}
 }
 
 /** Result the JSON variant of POST /verify returns. */
-export function verdictJson(v: ReceiptVerification): Record<string, unknown> {
+export function verdictJson(v: ReceiptVerification, signed: SignedVerdict | null = null): Record<string, unknown> {
   return {
     verdict: v.verdict,
     failing_check: v.failing_check,
@@ -105,5 +119,7 @@ export function verdictJson(v: ReceiptVerification): Record<string, unknown> {
     checks: v.checks,
     summary: v.summary,
     verify_url: v.receipt_sha256 ? `https://mcp.bernstein.run/verify/${v.receipt_sha256}` : null,
+    signed_verdict: signed,
+    keys_url: signed ? `https://mcp.bernstein.run${KEYS_PATH}` : null,
   };
 }

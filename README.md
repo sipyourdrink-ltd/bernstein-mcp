@@ -1,3 +1,5 @@
+![bernstein-mcp](assets/banner.png)
+
 # bernstein-mcp
 
 Stateless, read-only MCP endpoint at **https://mcp.bernstein.run** that verifies
@@ -12,9 +14,9 @@ claude mcp add --transport http bernstein https://mcp.bernstein.run/mcp
 
 | Tool | Result |
 |---|---|
-| `verify_receipt` | recomputes every chain a run receipt embeds, rebuilds the signed subject, checks the Ed25519 signature; verdict + one line per check |
+| `verify_receipt` | recomputes every chain a run receipt embeds, rebuilds the signed subject, checks the Ed25519 signature; verdict + one line per check, plus the verdict as a signed statement (below) |
 | `explain_receipt` | the same verification, narrated: what the run recorded, where it diverges, what the result does and does not prove |
-| `verify_chain` | walks journal rows, lineage entries or audit events on their own; names the first broken link |
+| `verify_chain` | walks journal rows, lineage entries or audit events on their own (pass the file text for byte-exact rows); names the first broken link |
 | `list_presets` / `get_preset` | the compliance presets this release ships |
 | `list_adapters` | the agent adapters bundled with this release |
 | `server_info` | version and limits |
@@ -33,6 +35,20 @@ address is the receipt's own digest.
 Pass the receipt file's contents as a **string**: an already parsed object
 cannot tell `1` from `1.0`, and the reference hashes the original spelling.
 
+## Signed verdicts
+
+Every verdict comes back as a [DSSE](https://github.com/secure-systems-lab/dsse)
+envelope (`signed_verdict`) signed with this deployment's Ed25519 key: the
+payload is a JCS-canonical statement naming the receipt by digest, the
+verdict, every check, and an `appraisal` block in the EAR status vocabulary
+(`affirming` / `contraindicated` / `none`). Keep it next to the receipt;
+anyone can re-check it offline against the public key at
+[/.well-known/bernstein-mcp/keys.json](https://mcp.bernstein.run/.well-known/bernstein-mcp/keys.json)
+(`kid` = RFC 7638 thumbprint). The signature covers the DSSE PAE of
+`application/vnd.bernstein.verdict+json`, the same construction the receipt
+itself uses. It attests that *this verifier reached this verdict for these
+bytes at this time* — nothing about the receipt's producer.
+
 ## Limits
 
 | | |
@@ -40,7 +56,7 @@ cannot tell `1` from `1.0`, and the reference hashes the original spelling.
 | Request body | 1 MiB |
 | Rows per chain | 2 000 (larger receipts: verify locally) |
 | Rate | 60 requests/min per address on `POST /mcp` and `POST /verify` |
-| Logging | one line per MCP session (client name + version); no request bodies |
+| Logging | one JSON line per request: route, method, status, latency, JSON-RPC method, tool, verdict, MCP client name/version, country, colo. Never the address, a header, the body or the receipt |
 
 ## Correctness
 
