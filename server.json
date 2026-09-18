@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sipyourdrink-ltd/bernstein-mcp",
+  "description": "Verifies Bernstein run receipts and hash chains; lists the shipped presets and adapters. Read-only.",
+  "websiteUrl": "https://mcp.bernstein.run",
+  "repository": {
+    "url": "https://github.com/sipyourdrink-ltd/bernstein-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.bernstein.run/mcp"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+name: Registry
+
+# Publishes server.json to the MCP registry. Runs on every release and on
+# demand; the version must already be bumped in package.json (server.json
+# mirrors it, test/manifest.test.ts pins that). Re-publishing a version the
+# registry already holds is treated as success.
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx vitest run test/manifest.test.ts
+      - name: Install mcp-publisher
+        env:
+          MCP_PUBLISHER_VERSION: v1.8.0
+          MCP_PUBLISHER_SHA256: 1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf
+        run: |
+          set -euo pipefail
+          asset="mcp-publisher_linux_amd64.tar.gz"
+          curl -sSLf -o "$asset" "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/${asset}"
+          echo "${MCP_PUBLISHER_SHA256}  ${asset}" | sha256sum -c -
+          tar xzf "$asset" mcp-publisher
+          ./mcp-publisher --version
+      - name: Publish server.json
+        run: |
+          set -euo pipefail
+          ./mcp-publisher login github-oidc
+          if out=$(./mcp-publisher publish 2>&1); then
+            echo "$out"
+          elif echo "$out" | grep -qiE 'already exists|duplicate'; then
+            echo "$out"
+            echo "::notice::this version is already listed; nothing to do"
+          else
+            echo "$out"
+            exit 1
+          fi
+      - name: Show the listing
+        run: |
+          sleep 5
+          curl -sSf 'https://registry.modelcontextprotocol.io/v0/servers?search=bernstein-mcp' | python3 -c 'import sys,json; [print(s["server"]["name"], s["server"]["version"], s["server"].get("remotes")) for s in json.load(sys.stdin).get("servers",[])]'

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "description": "Stateless, read-only MCP endpoint that verifies Bernstein run receipts and hash chains and lists the shipped compliance presets and agent adapters. No account, nothing stored, nothing fetched.",
+  "maintainers": [
+    "chernistry"
+  ]
+}
