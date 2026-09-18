@@ -24,7 +24,7 @@ describe("GET /", () => {
     expect(res.headers.get("cache-control")).toBe("public, max-age=300");
     const body = await res.text();
     expect(body).toContain("claude mcp add --transport http bernstein https://mcp.bernstein.run/mcp");
-    for (const tool of ["verify_receipt", "explain_receipt", "verify_chain", "list_presets", "get_preset", "list_adapters", "server_info"]) {
+    for (const tool of ["verify_receipt", "explain_receipt", "verify_chain", "verify_trace_record", "verify_delegation_chain", "explain_trace_mapping", "list_presets", "get_preset", "list_adapters", "server_info"]) {
       expect(body).toContain(`<td>${tool}</td>`);
     }
     expect(body).toContain('class="verdict valid"');

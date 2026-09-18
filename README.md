@@ -17,6 +17,9 @@ claude mcp add --transport http bernstein https://mcp.bernstein.run/mcp
 | `verify_receipt` | recomputes every chain a run receipt embeds, rebuilds the signed subject, checks the Ed25519 signature; verdict + one line per check, plus the verdict as a signed statement (below) |
 | `explain_receipt` | the same verification, narrated: what the run recorded, where it diverges, what the result does and does not prove |
 | `verify_chain` | walks journal rows, lineage entries or audit events on their own (pass the file text for byte-exact rows); names the first broken link |
+| `verify_trace_record` | TRACE v0.2 conformance checks on one Trust Record, stateless, no account: vendored schema, profile rules, the embedded signature with the key in `cnf.jwk` (EdDSA, ES256, ES384); `record_sha256` is the RFC 8785 digest a child hop links to |
+| `verify_delegation_chain` | walks a set of Trust Records from the leaf to the root and classifies the chain (`verified`, `provenance-invalid`, `authorization-invalid`, `unverifiable`) with the same codes as the delegation-link corpus |
+| `explain_trace_mapping` | how a bernstein run maps onto a TRACE v0.2 Trust Record, claim by claim; pass a receipt to fill in what its journal answers |
 | `list_presets` / `get_preset` | the compliance presets this release ships |
 | `list_adapters` | the agent adapters bundled with this release |
 | `server_info` | version and limits |

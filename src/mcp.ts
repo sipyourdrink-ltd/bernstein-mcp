@@ -3,12 +3,16 @@ import { z } from "zod";
 import adaptersJson from "../data/adapters.json";
 import bernsteinTagRaw from "../data/bernstein_tag.txt";
 import presetsJson from "../data/presets.json";
-import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES } from "./limits.js";
+import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES, MAX_TRACE_RECORDS } from "./limits.js";
 import { explainReceipt } from "./verify/explain.js";
 import { fromParsed, type JsonValue } from "./verify/pyjson.js";
 import { verifyReceiptBounded } from "./verify/bounded.js";
 import { CHECK_ORDER, parseChainText, producerFamily, verifyChain, type ChainVerification } from "./verify/receipt.js";
 import { KEYS_PATH, signVerdict, VERIFIER_URL, type Signer } from "./verify/attest.js";
+import { verifyTraceRecord, TRACE_CHECK_ORDER } from "./verify/trace/record.js";
+import { verifyDelegationChain, CODE_DETAIL, type ChainContext } from "./verify/trace/chain.js";
+import { explainTraceMapping } from "./verify/trace/mapping.js";
+import { parseJson } from "./verify/pyjson.js";
 
 export const BERNSTEIN_VERSION = bernsteinTagRaw.trim();
 
@@ -71,6 +75,46 @@ function chainRefused(kind: ChainVerification["kind"] | undefined, entries: numb
   return { kind: kind ?? "journal", intact: false, entries, head: "", divergent_index: null, detail };
 }
 
+const traceRecordInput = z
+  .union([z.string().max(MAX_BODY_BYTES), z.record(z.string(), z.unknown())])
+  .describe("A TRACE v0.2 Trust Record: the file contents as a string, or the parsed object.");
+
+const traceChecksSchema = z.array(
+  z.object({
+    name: z.enum(TRACE_CHECK_ORDER),
+    outcome: z.enum(["ok", "fail", "unverifiable", "skipped"]),
+    detail: z.string(),
+  }),
+);
+
+const chainContextSchema = z
+  .object({
+    leaf: z.string().optional().describe("Digest of the record under appraisal (`sha256:<hex>`); absent → the record no other record names as parent."),
+    now: z.number().optional().describe("Carried for completeness; credential windows are judged at each hop's own iat."),
+    max_depth: z.number().int().nonnegative().optional().describe("Default 8."),
+    supported_digest_algorithms: z.array(z.string()).optional().describe('Default ["sha256"]; "sha384" is also computed.'),
+    data_class_lattice: z.array(z.string()).optional().describe("Least to most sensitive; classes outside it are not compared. Default []."),
+    trusted_root_keys: z.array(z.record(z.string(), z.unknown())).optional().describe("Public JWKs; identity is (kty, crv, x, y). Default [] → the root is untrusted."),
+    credentials: z
+      .record(z.string(), z.object({ issuer: z.string().optional(), holder: z.string().optional(), not_before: z.number().optional(), not_after: z.number().optional() }))
+      .optional()
+      .describe("credential_id → {issuer, holder, not_before, not_after}. Default {} → every hop's credential is unknown."),
+  })
+  .optional();
+
+function chainUnverifiable(code: string, detail: string) {
+  return {
+    classification: "unverifiable" as const,
+    codes: [code],
+    failures: [] as string[],
+    warnings: [code],
+    depth: 0,
+    walk: [] as { record_sha256: string; subject: string; depth: number; delegation: { parent_record_hash: string; credential_id: string } | null; codes: string[] }[],
+    first_broken_link: { record_sha256: "", code, detail },
+    note: null as string | null,
+  };
+}
+
 export function registerTools(server: McpServer, opts: ServerOptions = { signer: null }): void {
   server.registerTool(
     "server_info",
@@ -83,6 +127,7 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
         limits: z.object({
           max_body_bytes: z.number().int().positive(),
           max_chain_entries: z.number().int().positive(),
+          max_trace_records: z.number().int().positive(),
         }),
         verdict_key: z
           .object({ kty: z.string(), crv: z.string(), x: z.string(), kid: z.string(), use: z.string(), alg: z.string() })
@@ -95,7 +140,7 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
       reply({
         name: "bernstein",
         version: BERNSTEIN_VERSION,
-        limits: { max_body_bytes: MAX_BODY_BYTES, max_chain_entries: MAX_CHAIN_ENTRIES },
+        limits: { max_body_bytes: MAX_BODY_BYTES, max_chain_entries: MAX_CHAIN_ENTRIES, max_trace_records: MAX_TRACE_RECORDS },
         verdict_key: opts.signer?.publicJwk ?? null,
         keys_url: `${VERIFIER_URL}${KEYS_PATH}`,
       }),
@@ -233,6 +278,145 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
       }
       const out = verifyChain(rows, kind);
       if (opts.trace) opts.trace.verdict = out.intact ? "intact" : "broken";
+      return reply({ ...out });
+    },
+  );
+
+  server.registerTool(
+    "verify_trace_record",
+    {
+      title: "Verify a TRACE Trust Record",
+      description:
+        "TRACE v0.2 conformance checks on one Trust Record, stateless, no account: schema (vendored trace-claim.json), " +
+        "profile, subject URI, software-only runtime rule, policy digest, public-only confirmation key, the embedded " +
+        "signature (EdDSA, ES256 or ES384 with the key in cnf.jwk), appraisal, delegation link shape and references. " +
+        "Nothing is fetched: resolvers are checked as URIs only. `record_sha256` is the RFC 8785 digest of the complete " +
+        "record, signature included — the value a child hop puts in delegation.parent_record_hash.",
+      inputSchema: { record: traceRecordInput },
+      outputSchema: {
+        verdict: verdictSchema,
+        failing_check: z.enum(TRACE_CHECK_ORDER).nullable(),
+        record_sha256: z.string(),
+        checks: traceChecksSchema,
+        summary: z
+          .object({
+            subject: z.string(),
+            eat_profile: z.string(),
+            iat: z.number().int(),
+            model_id: z.string(),
+            provider: z.string(),
+            data_class: z.string(),
+            key_thumbprint: z.string(),
+            has_delegation: z.boolean(),
+            references: z.number().int(),
+            tool_calls: z.number().int().nullable(),
+          })
+          .nullable(),
+        note: z.string().nullable(),
+      },
+    },
+    async ({ record }) => {
+      const v = await verifyTraceRecord(record);
+      if (opts.trace) opts.trace.verdict = v.verdict;
+      return reply({
+        verdict: v.verdict,
+        failing_check: v.failing_check,
+        record_sha256: v.record_sha256,
+        checks: v.checks,
+        summary: v.summary,
+        note: v.note,
+      });
+    },
+  );
+
+  server.registerTool(
+    "verify_delegation_chain",
+    {
+      title: "Verify a TRACE delegation chain",
+      description:
+        "TRACE v0.2 delegation-chain conformance, stateless, no account: index every Trust Record by the RFC 8785 " +
+        "digest of its complete form, start at the leaf, follow delegation.parent_record_hash to the root, and check " +
+        "each hop's signature, the root key against `trusted_root_keys`, the depth bound, the link's digest algorithm, " +
+        "the credential (registered, issuer = parent subject, holder = record subject, window at the hop's own iat) " +
+        "and data_class narrowing under `data_class_lattice`. Classification: provenance-invalid outranks " +
+        "authorization-invalid; an unread link is unverifiable, not broken. Pass `records` as a JSON array or as " +
+        "file text (one record per line or a JSON array).",
+      inputSchema: {
+        records: z
+          .union([z.array(z.union([z.string(), z.record(z.string(), z.unknown())])), z.string().max(MAX_BODY_BYTES)])
+          .describe("The record set in any order: a JSON array of records (objects or strings), or the raw text of a file."),
+        context: chainContextSchema,
+      },
+      outputSchema: {
+        classification: z.enum(["verified", "provenance-invalid", "authorization-invalid", "unverifiable"]),
+        codes: z.array(z.string()),
+        failures: z.array(z.string()),
+        warnings: z.array(z.string()),
+        depth: z.number().int(),
+        walk: z.array(
+          z.object({
+            record_sha256: z.string(),
+            subject: z.string(),
+            depth: z.number().int(),
+            delegation: z.object({ parent_record_hash: z.string(), credential_id: z.string() }).nullable(),
+            codes: z.array(z.string()),
+          }),
+        ),
+        first_broken_link: z.object({ record_sha256: z.string(), code: z.string(), detail: z.string() }).nullable(),
+        note: z.string().nullable(),
+      },
+    },
+    async ({ records, context }) => {
+      let rows: JsonValue[];
+      if (typeof records === "string") {
+        const parsed = parseChainText(records);
+        if (!parsed.ok) return reply(chainUnverifiable("records_unparseable", parsed.detail));
+        rows = parsed.rows;
+      } else {
+        rows = [];
+        for (const r of records) {
+          if (typeof r === "string") {
+            try {
+              rows.push(parseJson(r));
+            } catch (exc) {
+              return reply(chainUnverifiable("records_unparseable", `record ${rows.length} is not valid JSON: ${(exc as Error).message}`));
+            }
+          } else {
+            rows.push(fromParsed(r));
+          }
+        }
+      }
+      if (rows.length > MAX_TRACE_RECORDS) return reply(chainUnverifiable("too_many_records", CODE_DETAIL["too_many_records"]));
+      const out = await verifyDelegationChain(rows, (context ?? {}) as ChainContext);
+      if (opts.trace) opts.trace.verdict = out.classification;
+      return reply({ ...out });
+    },
+  );
+
+  server.registerTool(
+    "explain_trace_mapping",
+    {
+      title: "Explain the bernstein → TRACE mapping",
+      description:
+        "How a bernstein run maps onto a TRACE v0.2 Trust Record: one row per claim with the journal field it is " +
+        "sourced from and the rule that derives it. Pass a run receipt to fill in the rows its embedded journal can " +
+        "answer (subject, iat, model, data_class, policy digest, tool transcript) alongside the receipt's own verdict.",
+      inputSchema: {
+        receipt: z
+          .union([z.string(), z.record(z.string(), z.unknown())])
+          .optional()
+          .describe("Optional run receipt: the file contents as a string, or the parsed object."),
+      },
+      outputSchema: {
+        mapping: z.array(z.object({ claim: z.string(), source: z.string(), rule: z.string(), value: z.string().nullable() })),
+        markdown: z.string(),
+        verdict: verdictSchema.nullable(),
+        receipt_sha256: z.string().nullable(),
+      },
+    },
+    async ({ receipt }) => {
+      const out = await explainTraceMapping(receipt);
+      if (opts.trace && out.verdict) opts.trace.verdict = out.verdict;
       return reply({ ...out });
     },
   );
