@@ -36,6 +36,7 @@ export const runId = (meta: Meta) => (meta.segment === 1 ? meta.session_id : `${
 export function readMeta(agent: string, sessionId: string): Meta | null {
   let parsed: Partial<Meta>;
   try { parsed = JSON.parse(readFileSync(metaPath(agent, sessionId), "utf8")) as Partial<Meta>; } catch { return null; }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const defaults = newMeta({
     agent: parsed.agent as Meta["agent"], session_id: parsed.session_id as string, project_root: parsed.project_root as string,
     project: parsed.project as string, model: parsed.model as string, agent_version: parsed.agent_version,

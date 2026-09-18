@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { keyPath, sessionDir, SEGMENT_ROWS, statePath } from "../../cli/paths.js";
@@ -71,5 +71,11 @@ describe("store", () => {
     expect(read?.last_run_id).toBe("old");
     expect(read?.last_verify_url).toBe("https://mcp.bernstein.run/verify/x");
     expect(read?.project_root).toBe("/p");
+  });
+
+  it("treats a meta file holding valid JSON that isn't an object as malformed", () => {
+    mkdirSync(sessionDir("claude-code"), { recursive: true });
+    writeFileSync(join(sessionDir("claude-code"), "null-meta.meta.json"), "null");
+    expect(readMeta("claude-code", "null-meta")).toBeNull();
   });
 });
