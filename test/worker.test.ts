@@ -1,41 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import worker, { type Env } from "../src/index.js";
 import { MAX_BODY_BYTES } from "../src/limits.js";
 import { receiptString } from "./helpers.js";
-import { buildReceipt } from "../cli/receipt.js";
-import { importKey } from "../cli/keys.js";
-import { GENESIS, hashRow, type RowInput } from "../cli/rows.js";
-import { TEST_JWK } from "./cli/fixtures/test-key.js";
+import { verifyReceipt } from "../src/verify/receipt.js";
 
-/**
- * A session receipt built the way `cli/receipt.ts` writes one, so the
- * request-log test below exercises the same `producer` block a real
- * `bernstein-attest` run leaves behind. Task 11 replaces this with the
- * frozen `vectors/session/session-valid.json` vector.
- */
-async function sessionReceiptText(): Promise<string> {
-  let head = GENESIS;
-  const rows: RowInput[] = [];
-  const inputs: RowInput[] = [
-    { event: "session_started", agent: "claude-code", producer: "bernstein-attest 0.2.0", project: "demo", cwd_sha256: "c".repeat(64), ts: 1 },
-    { event: "tool_call", tool: "Write", tool_use_id: "toolu_1", input_sha256: "a".repeat(64), output_sha256: "b".repeat(64), ok: true, path: "src/x.ts", ts: 2 },
-    { event: "turn_ended", turn: 1, last_message_sha256: "d".repeat(64), ts: 3 },
-  ];
-  for (const input of inputs) {
-    const r = hashRow(input, head);
-    rows.push(r.row);
-    head = r.head;
-  }
-  const sealed = await buildReceipt({
-    runId: "sess-log-1",
-    rows,
-    files: [{ path: "src/x.ts", stepId: "toolu_1", contentSha256: "e".repeat(64) }],
-    agent: "claude-code",
-    model: "unknown",
-    key: await importKey(TEST_JWK),
-    now: 4,
-  });
-  return sealed.text;
+/** The frozen session-valid vector's receipt text (Task 11), the same shape `bernstein-attest` writes. */
+function sessionReceiptText(): string {
+  return JSON.parse(readFileSync("vectors/session/session-valid.json", "utf8")).input.receipt_text;
 }
 
 const env = {} as Env;
@@ -278,7 +250,7 @@ describe("request log line", () => {
     const lines: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((line: string) => void lines.push(String(line)));
     try {
-      const sessionReceipt = await sessionReceiptText();
+      const sessionReceipt = sessionReceiptText();
       const res = await worker.fetch(
         new Request("https://mcp.bernstein.run/verify", {
           method: "POST",
@@ -292,7 +264,13 @@ describe("request log line", () => {
       const logs = lines.map((l) => JSON.parse(l) as Record<string, unknown>).filter((l) => l.evt === "mcp.request");
       const line = logs.find((l) => l.route === "/verify" && l.method === "POST");
       expect(line?.producer).toBe("bernstein-attest");
-      expect(JSON.stringify(line)).not.toContain("0.2.0");
+      // The family alone ("bernstein-attest") is expected and fine; the log
+      // must not carry the version or the full raw label the receipt embeds.
+      const producerVersion = (JSON.parse(sessionReceipt).producer as { version: string }).version;
+      const producerLabel = (await verifyReceipt(sessionReceipt)).summary?.producer;
+      const serialized = JSON.stringify(line);
+      expect(serialized).not.toContain(producerVersion);
+      if (producerLabel) expect(serialized).not.toContain(producerLabel);
     } finally {
       spy.mockRestore();
     }
