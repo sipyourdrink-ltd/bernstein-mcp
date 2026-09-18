@@ -34,6 +34,7 @@ const { verifyReceipt } = await import(join(tmp, "receipt.js"));
 
 const TEST_JWK = { kty: "OKP", crv: "Ed25519", x: "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo", d: "nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A" };
 const fx = (name) => readFileSync(join(root, "test", "cli", "fixtures", `${name}.json`), "utf8");
+const SEGMENT_ROWS = 2000; // mirrors cli/paths.ts
 
 async function session(steps) {
   const home = mkdtempSync(join(tmpdir(), "vec-home-"));
@@ -46,7 +47,14 @@ async function session(steps) {
   // the row's own displayed "path" field is already project-relative. The
   // basename must also be the fixed string "demo": it lands verbatim in
   // the session_started row's "project" field.
-  const project = join(tmpdir(), "bernstein-gen-session-vectors", "demo");
+  //
+  // This must also be the same absolute path on every host that regenerates
+  // these vectors — os.tmpdir() varies per machine/user (e.g. macOS's
+  // /var/folders/...), and since that path is part of the hashed tool
+  // input, a run on CI or another laptop would otherwise rewrite every
+  // hash with no way to tell "receipt shape changed" from "machine
+  // changed". Windows is not a supported generator host.
+  const project = "/tmp/bernstein-attest-vectors/demo";
   rmSync(project, { recursive: true, force: true });
   mkdirSync(join(project, "src"), { recursive: true });
   writeFileSync(join(project, "src", "app.ts"), "export const a = 2;\n");
@@ -89,7 +97,7 @@ function emit(name, description, receipt_text, exp) {
 }
 {
   const steps = [];
-  for (let i = 0; i < 2000; i++) steps.push(["cc-posttooluse-bash", { tool_use_id: `t${i}` }]);
+  for (let i = 0; i < SEGMENT_ROWS; i++) steps.push(["cc-posttooluse-bash", { tool_use_id: `t${i}` }]);
   steps.push(["cc-stop", {}]);
   const s = await session(steps);
   const seg1 = await verifyReceipt(s.read("cc-sess-1"));
