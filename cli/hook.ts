@@ -1,6 +1,8 @@
 // One hook process per event. Reads meta (a few hundred bytes), appends
 // one row, rewrites meta; seals on Stop/SessionEnd or at the segment
-// boundary. Nothing here may throw past handleHook: every failure is one
+// boundary. SessionEnd only appends/reseals when rows are unsealed since
+// the last Stop; a receipt whose link was already shown never changes.
+// Nothing here may throw past handleHook: every failure is one
 // line in attest.log and an empty, exit-0 answer.
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -149,6 +151,7 @@ async function onStop(agent: Agent, ev: Extract<HookEvent, { kind: "stop" }>, no
 async function onEnd(agent: Agent, ev: Extract<HookEvent, { kind: "end" }>, now: () => number): Promise<string> {
   const meta = readMeta(agent, ev.sessionId);
   if (!meta) return "";
+  if (meta.head.index - 1 <= meta.sealed_index) return "";   // already sealed by Stop: leave the shown receipt untouched
   appendRow(meta, { event: "session_ended", reason: ev.reason, ts: now() });
   await sealSession(meta, { now: now(), key: await loadOrCreateKey(keyPath()) });
   writeMeta(meta);

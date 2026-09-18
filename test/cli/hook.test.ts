@@ -110,12 +110,35 @@ describe("handleHook end to end", () => {
     // A second Stop with nothing new: no reseal, no message.
     const again = await handleHook("claude-code", inProject(fx("cc-stop")), { now });
     expect(again.stdout).toBe("");
-    // SessionEnd appends session_ended and reseals silently.
+    // SessionEnd with nothing unsealed since the Stop: a receipt whose link was already
+    // shown must never change afterwards, so this is a pure no-op.
+    const bytesBeforeEnd = readFileSync(file, "utf8");
+    const metaBeforeEnd = readMeta("claude-code", "cc-sess-1")!;
     const end = await handleHook("claude-code", inProject(fx("cc-sessionend")), { now });
     expect(end.stdout).toBe("");
+    expect(readFileSync(file, "utf8")).toBe(bytesBeforeEnd);
     const v2 = await verifyReceipt(readFileSync(file, "utf8"));
-    expect(v2.summary?.journal_events).toBe(7);
+    expect(v2.summary?.journal_events).toBe(6);
     expect(v2.verdict).toBe("valid");
+    const metaAfterEnd = readMeta("claude-code", "cc-sess-1")!;
+    expect(metaAfterEnd.sealed_index).toBe(metaBeforeEnd.sealed_index);
+    expect(metaAfterEnd.last_receipt_sha256).toBe(metaBeforeEnd.last_receipt_sha256);
+    expect(metaAfterEnd.head.index).toBe(metaBeforeEnd.head.index);
+  });
+
+  it("seals a session_ended row when SessionEnd arrives with nothing sealed by Stop", async () => {
+    await handleHook("claude-code", inProject(fx("cc-posttooluse-bash")), { now });
+    const end = await handleHook("claude-code", inProject(fx("cc-sessionend")), { now });
+    expect(end.stdout).toBe("");
+    const file = join(project, ".bernstein", "receipts", "cc-sess-1.json");
+    expect(existsSync(file)).toBe(true);
+    const v = await verifyReceipt(readFileSync(file, "utf8"));
+    expect(v.verdict).toBe("valid");
+    const meta = readMeta("claude-code", "cc-sess-1")!;
+    const rows = readRows(meta);
+    expect(rows.map((r) => r.event)).toEqual(["session_started", "tool_call", "session_ended"]);
+    expect(rows[2]).toMatchObject({ event: "session_ended", reason: "other" });
+    expect(v.summary?.journal_events).toBe(3);
   });
 
   it("journals a Codex session, tracking apply_patch files and the model", async () => {
