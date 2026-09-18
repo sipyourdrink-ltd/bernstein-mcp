@@ -15,4 +15,15 @@ describe("registry manifest", () => {
     expect(server.packages).toBeUndefined();
     expect(server.description.length).toBeLessThanOrEqual(100);
   });
+
+  it("root, server.json and the CLI share one version", () => {
+    const root = JSON.parse(readFileSync("package.json", "utf8"));
+    const server = JSON.parse(readFileSync("server.json", "utf8"));
+    const cli = JSON.parse(readFileSync("cli/package.json", "utf8"));
+    expect(server.version).toBe(root.version);
+    expect(cli.version).toBe(root.version);
+    expect(cli.name).toBe("bernstein-attest");
+    expect(cli.bin).toEqual({ "bernstein-attest": "dist/attest.js" });
+    expect(cli.files).toEqual(["dist"]);
+  });
 });

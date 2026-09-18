@@ -49,6 +49,18 @@ anyone can re-check it offline against the public key at
 itself uses. It attests that *this verifier reached this verdict for these
 bytes at this time* — nothing about the receipt's producer.
 
+## Session receipts
+
+`bernstein-attest` turns a Claude Code or Codex CLI session into a signed run receipt that this server verifies.
+
+```bash
+npx bernstein-attest init          # registers hooks for both agents (user scope); --claude-code / --codex / --project to narrow
+bernstein-attest link              # verify link + one Markdown line for a PR description
+bernstein-attest verify .bernstein/receipts/<session>.json
+```
+
+Recorded per tool call: tool name, hashes of its input and output, success flag, repo-relative path for files the call wrote (hash only for paths outside the project), the first word of a shell command. Not recorded: prompts, model output, command text, file contents, absolute paths. The receipt is sealed at every turn end and at 2 000 rows; the file lives in `.bernstein/receipts/` and can be committed with the change it describes.
+
 ## Limits
 
 | | |
@@ -56,7 +68,7 @@ bytes at this time* — nothing about the receipt's producer.
 | Request body | 1 MiB |
 | Rows per chain | 2 000 (larger receipts: verify locally) |
 | Rate | 60 requests/min per address on `POST /mcp` and `POST /verify` |
-| Logging | one JSON line per request: route, method, status, JSON-RPC method, tool, verdict, MCP client name/version, country, colo. Never the address, a header, the body or the receipt |
+| Logging | one JSON line per request: route, method, status, JSON-RPC method, tool, verdict, producer family, MCP client name/version, country, colo. Never the address, a header, the body or the receipt |
 
 ## Correctness
 
@@ -64,6 +76,8 @@ bytes at this time* — nothing about the receipt's producer.
 (`scripts/gen_vectors.py` against the pinned bernstein source). The
 TypeScript verifier must reproduce each vector's verdict, every check, the
 binding bytes and the receipt digest byte for byte (`test/vectors.test.ts`).
+`vectors/session/` holds three frozen session receipts written by
+`bernstein-attest` (`scripts/gen-session-vectors.mjs`).
 
 ## Development
 
