@@ -23,9 +23,18 @@ const MAX_HASHED_FILE_BYTES = 16 * 1024 * 1024;
 const sha256 = (data: string | Buffer) => createHash("sha256").update(data).digest("hex");
 const digestOf = (v: unknown): string => sha256(typeof v === "string" ? v : JSON.stringify(v ?? null));
 
+// The program name of a shell command: leading `VAR=value` assignments and a bare
+// `env` are skipped, since their values are exactly what a receipt must not carry.
+// A token that still holds `=`, `:` or `@` (a lone assignment, a URL, user@host) is
+// dropped; the caller then leaves command_head out of the row.
+const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 export function commandHead(command: string): string {
-  const first = command.trim().split(/\s+/)[0] ?? "";
-  return basename(first).slice(0, 32);
+  const tokens = command.trim().split(/\s+/).filter((t) => t.length > 0);
+  let i = 0;
+  while (i < tokens.length && (ENV_ASSIGNMENT.test(tokens[i]) || tokens[i] === "env")) i++;
+  const token = tokens[i] ?? "";
+  if (!token || /[=:@]/.test(token)) return "";
+  return basename(token).slice(0, 32);
 }
 
 export function pathPolicy(projectRoot: string, candidate: string): { path: string } | { path_sha256: string } {
@@ -107,7 +116,10 @@ async function onTool(agent: Agent, ev: Extract<HookEvent, { kind: "tool" }>, no
   if (ev.agentType) row.agent_type = ev.agentType;
   if (ev.toolName === "Bash" || ev.toolName === "shell") {
     const cmd = (ev.toolInput as { command?: unknown } | null)?.command;
-    if (typeof cmd === "string") row.command_head = commandHead(cmd);
+    if (typeof cmd === "string") {
+      const head = commandHead(cmd);
+      if (head) row.command_head = head;
+    }
   }
   const written = writePaths(agent, ev.toolName, ev.toolInput).map((p) => pathPolicy(meta!.project_root, p));
   if (written.length) {

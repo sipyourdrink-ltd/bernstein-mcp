@@ -60,6 +60,23 @@ describe("helpers", () => {
     expect(commandHead("  npm test")).toBe("npm");
     expect(commandHead("x".repeat(50) + " y")).toHaveLength(32);
     expect(commandHead("")).toBe("");
+    // Leading environment assignments carry values; the head is the program after them.
+    expect(commandHead("GH_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789 gh pr create")).toBe("gh");
+    expect(commandHead("DATABASE_URL=postgres://admin:hunter2@db.internal:5432/prod npm run migrate")).toBe("npm");
+    expect(commandHead("PGPASSWORD=hunter2 psql")).toBe("psql");
+    expect(commandHead("env FOO=1 make")).toBe("make");
+    expect(commandHead("FOO=bar")).toBe("");
+    expect(commandHead("https://example.com/x")).toBe("");
+    expect(commandHead("user@host")).toBe("");
+  });
+  it("omits command_head when the command has no program name", async () => {
+    const bash = inProject(fx("cc-posttooluse-bash"));
+    bash.tool_input = { command: "FOO=bar" };
+    await handleHook("claude-code", bash, { now });
+    const rows = readRows(readMeta("claude-code", "cc-sess-1")!);
+    expect(rows[1].event).toBe("tool_call");
+    expect(rows[1]).not.toHaveProperty("command_head");
+    expect(JSON.stringify(rows)).not.toContain("bar");
   });
   it("finds the files a call wrote", () => {
     expect(writePaths("claude-code", "Write", { file_path: "/w/a.ts", content: "" })).toEqual(["/w/a.ts"]);
