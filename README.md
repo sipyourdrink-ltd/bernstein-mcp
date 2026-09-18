@@ -59,7 +59,7 @@ bernstein-attest link              # verify link + one Markdown line for a PR de
 bernstein-attest verify .bernstein/receipts/<session>.json
 ```
 
-Recorded per tool call: tool name, hashes of its input and output, success flag, repo-relative path for files the call wrote (hash only for paths outside the project), the first word of a shell command. Not recorded: prompts, model output, command text, file contents, absolute paths. The receipt is sealed at every turn end and at 2 000 rows; the file lives in `.bernstein/receipts/` and can be committed with the change it describes.
+Recorded per tool call: tool name, hashes of its input and output, success flag, repo-relative path for files the call wrote (hash only for paths outside the project), the program name of a shell command (first token, path stripped, at most 32 characters). Not recorded: prompts, model output, command text, file contents, absolute paths. The receipt is sealed at the end of every turn that recorded something new, and every 2 000 rows; the file lives in `.bernstein/receipts/` and can be committed with the change it describes.
 
 ## Limits
 
