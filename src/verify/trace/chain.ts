@@ -313,7 +313,7 @@ export async function verifyDelegationChain(records: JsonValue[], context: Chain
 
     take(evaluate(hop, "record"));
 
-    if (delegationOf(current) === null && !("delegation" in current)) {
+    if (!("delegation" in current)) {
       take(evaluate(hop, "root"));
       walk.push(hopView(current, hopDepth, hopCodes));
       break;
