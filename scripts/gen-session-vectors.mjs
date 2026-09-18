@@ -37,12 +37,17 @@ const fx = (name) => readFileSync(join(root, "test", "cli", "fixtures", `${name}
 
 async function session(steps) {
   const home = mkdtempSync(join(tmpdir(), "vec-home-"));
-  // The project's basename lands in the session_started row (`project:
-  // basename(root)`). Nesting it as <tmp>/demo keeps that value the fixed
-  // string "demo" instead of the random mkdtemp suffix, so the row (and
-  // therefore the receipt bytes) don't depend on this run's temp names.
-  const projectParent = mkdtempSync(join(tmpdir(), "vec-proj-"));
-  const project = join(projectParent, "demo");
+  // The project directory must be a FIXED path, not a fresh mkdtemp one:
+  // the Write fixture's tool_input.file_path / tool_response.filePath carry
+  // "/work/demo", which gets replaceAll'd to this project path below, and
+  // that raw (pre-pathPolicy) JSON is what input_sha256/output_sha256 hash.
+  // A random mkdtemp suffix there would leak into those digests — and, via
+  // the journal's hash chain, into every event_hash after it — even though
+  // the row's own displayed "path" field is already project-relative. The
+  // basename must also be the fixed string "demo": it lands verbatim in
+  // the session_started row's "project" field.
+  const project = join(tmpdir(), "bernstein-gen-session-vectors", "demo");
+  rmSync(project, { recursive: true, force: true });
   mkdirSync(join(project, "src"), { recursive: true });
   writeFileSync(join(project, "src", "app.ts"), "export const a = 2;\n");
   mkdirSync(join(home, ".config", "bernstein-attest"), { recursive: true });
@@ -59,7 +64,7 @@ async function session(steps) {
     await handleHook("claude-code", { ...payload, ...patch }, { now, env });
   }
   const read = (id) => readFileSync(join(project, ".bernstein", "receipts", `${id}.json`), "utf8");
-  const done = () => { rmSync(home, { recursive: true, force: true }); rmSync(projectParent, { recursive: true, force: true }); };
+  const done = () => { rmSync(home, { recursive: true, force: true }); rmSync(project, { recursive: true, force: true }); };
   return { read, done };
 }
 
