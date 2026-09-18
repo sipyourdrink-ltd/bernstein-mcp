@@ -15,12 +15,16 @@ export interface AttestKey {
   keyId: string;
 }
 
+export function keyIdOf(x: string): string {
+  return "bernstein-attest-" + sha256HexOfString(x).slice(0, 8);
+}
+
 export async function importKey(jwk: PrivateJwk): Promise<AttestKey> {
   const privateKey = await crypto.subtle.importKey("jwk", { kty: "OKP", crv: "Ed25519", x: jwk.x, d: jwk.d }, { name: "Ed25519" }, false, ["sign"]);
   return {
     privateKey,
     publicJwk: { kty: "OKP", crv: "Ed25519", x: jwk.x, kid: jwkThumbprint(jwk.x), alg: "EdDSA" },
-    keyId: "bernstein-attest-" + sha256HexOfString(jwk.x).slice(0, 8),
+    keyId: keyIdOf(jwk.x),
   };
 }
 
