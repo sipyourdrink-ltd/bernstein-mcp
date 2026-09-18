@@ -5,13 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateKeyFile, importKey, loadKeyFile, loadOrCreateKey, sign } from "../../cli/keys.js";
 import { jwkThumbprint } from "../../src/verify/attest.js";
-
-// A fixed test key so receipts built in tests are byte-stable.
-export const TEST_JWK = {
-  kty: "OKP" as const, crv: "Ed25519" as const,
-  x: "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
-  d: "nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A",
-};
+import { TEST_JWK } from "./fixtures/test-key.js";
 
 describe("attest key", () => {
   it("generates a 0600 JWK file and reloads the same public key", async () => {

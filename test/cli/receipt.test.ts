@@ -4,7 +4,7 @@ import { GENESIS, hashRow, type RowInput } from "../../cli/rows.js";
 import { importKey } from "../../cli/keys.js";
 import { buildReceipt } from "../../cli/receipt.js";
 import { verifyReceipt } from "../../src/verify/receipt.js";
-import { TEST_JWK } from "./keys.test.js";
+import { TEST_JWK } from "./fixtures/test-key.js";
 
 async function sample() {
   let head = GENESIS;
