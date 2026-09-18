@@ -12,8 +12,13 @@ export const bundlePath = () => join(homeDir(), ".local", "share", "bernstein-at
 export const logPath = () => join(statePath(), "attest.log");
 export const sessionDir = (agent: string) => join(statePath(), "sessions", agent);
 export const receiptsDir = () => join(statePath(), "receipts");
+/**
+ * Project scope targets settings.local.json, the per-person file Claude Code keeps
+ * out of version control: the hook command names the bundle under this user's
+ * home directory, which is meaningless on a teammate's machine.
+ */
 export function claudeSettingsPath(scope: "user" | "project", projectDir = process.cwd()): string {
-  return scope === "user" ? join(homeDir(), ".claude", "settings.json") : join(projectDir, ".claude", "settings.json");
+  return scope === "user" ? join(homeDir(), ".claude", "settings.json") : join(projectDir, ".claude", "settings.local.json");
 }
 export function codexHooksPath(scope: "user" | "project", projectDir = process.cwd()): string {
   return scope === "user" ? join(homeDir(), ".codex", "hooks.json") : join(projectDir, ".codex", "hooks.json");

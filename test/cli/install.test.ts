@@ -79,9 +79,35 @@ describe("init / status / uninstall", () => {
   it("dry-run writes nothing and shows the result", async () => {
     const rep = await init({ claudeCode: true, codex: false, scope: "project", projectDir: project, dryRun: true, bundleSource: bundleSrc });
     expect(existsSync(claudeSettingsPath("project", project))).toBe(false);
+    expect(existsSync(join(project, ".claude", "settings.json"))).toBe(false);
+    expect(existsSync(join(project, ".claude", "settings.local.json"))).toBe(false);
     expect(existsSync(bundlePath())).toBe(false);
     expect(rep.changes[0].after).toContain('"Stop"');
     expect(rep.changes[0].backup).toBeNull();
+    expect(rep.notices).toEqual([]);
+  });
+  it("project scope: Claude Code hooks go to the personal settings file, Codex hooks to .codex/hooks.json with a notice", async () => {
+    // The hook command names a file under the home directory, so it must not land in the
+    // file a project commits; Claude Code keeps personal settings in settings.local.json.
+    expect(claudeSettingsPath("project", "/p")).toBe(join("/p", ".claude", "settings.local.json"));
+    expect(claudeSettingsPath("user")).toBe(join(home, ".claude", "settings.json"));
+    expect(codexHooksPath("project", "/p")).toBe(join("/p", ".codex", "hooks.json"));
+    const rep = await init({ claudeCode: true, codex: true, scope: "project", projectDir: project, dryRun: false, bundleSource: bundleSrc });
+    expect(rep.changes.map((c) => c.file)).toEqual([join(project, ".claude", "settings.local.json"), join(project, ".codex", "hooks.json")]);
+    expect(existsSync(join(project, ".claude", "settings.json"))).toBe(false);
+    expect(JSON.parse(readFileSync(join(project, ".claude", "settings.local.json"), "utf8")).hooks.Stop[0].hooks[0].command).toBe(hookCommand("claude-code", bundlePath()));
+    expect(rep.notices).toEqual([
+      "Codex: run /hooks inside codex once to review and trust the new hooks.",
+      "Codex: .codex/hooks.json names a file under your home directory; keep it out of version control.",
+    ]);
+    expect(status(project).hooks.map((h) => h.file)).toEqual([join(project, ".claude", "settings.local.json"), join(project, ".codex", "hooks.json")]);
+    const again = await init({ claudeCode: true, codex: true, scope: "project", projectDir: project, dryRun: false, bundleSource: bundleSrc });
+    expect(again.changes).toEqual([]);
+    expect(again.notices).toEqual([]);
+    const removed = uninstall({ scope: "project", projectDir: project, dryRun: false });
+    expect(removed.map((c) => c.file)).toEqual([join(project, ".claude", "settings.local.json"), join(project, ".codex", "hooks.json")]);
+    expect(JSON.parse(readFileSync(join(project, ".claude", "settings.local.json"), "utf8"))).toEqual({});
+    expect(existsSync(join(project, ".claude", "settings.json"))).toBe(false);
   });
   it("refuses to touch a settings file that isn't valid JSON", async () => {
     mkdirSync(join(home, ".claude"), { recursive: true });

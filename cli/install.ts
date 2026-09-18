@@ -17,6 +17,8 @@ const OUR_COMMAND = /^node ".*" hook --agent (claude-code|codex)$/;
 const CC_EVENTS: [string, string, number][] = [["PostToolUse", "*", 20], ["PostToolUseFailure", "*", 20], ["Stop", "", 30], ["SessionEnd", "", 5]];
 const CODEX_EVENTS: [string, number][] = [["PostToolUse", 20], ["Stop", 30], ["SessionEnd", 3]];
 const CODEX_TRUST_NOTICE = "Codex: run /hooks inside codex once to review and trust the new hooks.";
+// Codex has one hooks file per project and no personal variant of it.
+const CODEX_PROJECT_NOTICE = "Codex: .codex/hooks.json names a file under your home directory; keep it out of version control.";
 
 export function hookCommand(agent: "claude-code" | "codex", bundle: string): string {
   return `node "${bundle}" hook --agent ${agent}`;
@@ -119,7 +121,10 @@ export async function init(o: InitOptions): Promise<InitReport> {
     const c = apply(codexFile, nextCodex, o.dryRun);
     if (c) {
       changes.push(c);
-      if (!o.dryRun) notices.push(CODEX_TRUST_NOTICE);
+      if (!o.dryRun) {
+        notices.push(CODEX_TRUST_NOTICE);
+        if (o.scope === "project") notices.push(CODEX_PROJECT_NOTICE);
+      }
     }
   }
   return { keyId: key?.keyId ?? "(created on first run)", keyCreated: !had && !o.dryRun, bundle, changes, notices };

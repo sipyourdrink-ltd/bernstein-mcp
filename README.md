@@ -59,7 +59,7 @@ bernstein-attest link              # verify link + one Markdown line for a PR de
 bernstein-attest verify .bernstein/receipts/<session>.json
 ```
 
-Codex runs project hooks only after they are trusted once with `/hooks` in an interactive session; `codex exec` skips untrusted hooks without printing anything.
+Codex runs project hooks only after they are trusted once with `/hooks` in an interactive session; `codex exec` skips untrusted hooks without printing anything. With `--project`, Claude Code hooks go to `.claude/settings.local.json` and Codex hooks to `.codex/hooks.json`; both name the bundle under your home directory, so keep `.codex/hooks.json` out of version control.
 
 Recorded per tool call: tool name, hashes of its input and output, success flag, repo-relative path for files the call wrote (hash only for paths outside the project), the program name of a shell command (first token, path stripped, at most 32 characters). Not recorded: prompts, model output, command text, file contents, absolute paths. The receipt is sealed at the end of every turn that recorded something new, and every 2 000 rows; the file lives in `.bernstein/receipts/` and can be committed with the change it describes. Because later turns reseal the same file, run `npx bernstein-attest link` right before committing it so the link you paste names the current bytes.
 

@@ -56,6 +56,16 @@ describe("bundle", () => {
     const r = run(["init", "--claude-code", "--project", "--dry-run"]);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('"PostToolUse"');
+    expect(r.stdout).toContain(join(project, ".claude", "settings.local.json"));
+    expect(existsSync(join(project, ".claude", "settings.json"))).toBe(false);
+    expect(existsSync(join(project, ".claude", "settings.local.json"))).toBe(false);
+  });
+  it("init --project writes the personal Claude Code settings file, never the shared one", () => {
+    const r = run(["init", "--claude-code", "--project"]);
+    expect(r.status).toBe(0);
+    const local = join(project, ".claude", "settings.local.json");
+    expect(existsSync(local)).toBe(true);
+    expect(JSON.parse(readFileSync(local, "utf8")).hooks.PostToolUse[0].hooks[0].command).toContain("hook --agent claude-code");
     expect(existsSync(join(project, ".claude", "settings.json"))).toBe(false);
   });
   it("eight concurrent hook processes of one session leave one unbroken chain", async () => {
