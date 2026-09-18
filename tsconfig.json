@@ -18,5 +18,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "test/**/*"],
+  "exclude": ["cli", "test/cli", "node_modules"]
 }

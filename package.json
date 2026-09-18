@@ -8,7 +8,8 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "bash scripts/check-no-fetch.sh && bash scripts/check-data-tag.sh && vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.cli.json",
+    "build:cli": "node scripts/build-cli.mjs",
     "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260918.1",
     "@types/node": "24.10.1",
+    "esbuild": "0.28.2",
     "typescript": "^5.4.0",
     "vitest": "4.1.11",
     "wrangler": "4.134.0"

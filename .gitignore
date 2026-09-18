@@ -2,6 +2,7 @@
 node_modules/
 .wrangler/
 dist/
+cli/dist/
 .env
 .env.*
 *.log
