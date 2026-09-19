@@ -64,6 +64,11 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
 
+  if (cmd === "--help" || cmd === "-h" || cmd === "help") {
+    process.stdout.write(USAGE);
+    return 0;
+  }
+
   if (cmd === "hook") {
     const agent = value(argv, "--agent") === "codex" ? "codex" : "claude-code";
     let payload: unknown = null;
