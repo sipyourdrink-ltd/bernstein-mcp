@@ -46,6 +46,26 @@ describe("schema (vendored trace-claim.json)", () => {
     expect(res.errors[0].path).toBe("#/model");
     expect(res.errors[0].message).toMatch(/provider/);
   });
+
+  it("accepts a record carrying the reproducibility claim", () => {
+    const r = {
+      ...JSON.parse(bernsteinRecordText("single-execution")),
+      reproducibility: {
+        function: "verify_and_summarize",
+        code_identity: "sha256:" + "a".repeat(64),
+        input_closure: [
+          {
+            id: "transcript",
+            digest: "sha256:" + "b".repeat(64),
+            resolver: "run-cache"
+          }
+        ],
+        transcript_digest: "sha256:" + "c".repeat(64)
+      }
+    };
+    const res = validateTraceRecord(r);
+    expect(res.ok, JSON.stringify(res.errors[0])).toBe(true);
+  });
 });
 
 describe("canonicalization helpers", () => {
