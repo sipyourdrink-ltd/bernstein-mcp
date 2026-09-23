@@ -1,0 +1,17 @@
+{
+  "trusted_root_keys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "gyClGXfYw4yopJJ8Zw31gh5El2GUXhXp77JqFQnSMOo"
+    }
+  ],
+  "credentials": {
+    "trust-record-vector-delegation-credential:scope=narrow": {
+      "issuer": "spiffe://bernstein.run/run/trust-record-vector-run/exec/trust-record-vector-parent",
+      "holder": "spiffe://bernstein.run/run/trust-record-vector-run/exec/trust-record-vector-child",
+      "not_before": 1699999957,
+      "not_after": 1700000077
+    }
+  }
+}
