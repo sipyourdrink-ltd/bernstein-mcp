@@ -1,0 +1,80 @@
+{
+  "verdict": "invalid",
+  "failing_check": "signature",
+  "record_sha256": "sha256:ef67566d030de1042554b66b35def479824b1dcf55481aa937c0bc73f39ef545",
+  "checks": [
+    {
+      "name": "parse",
+      "outcome": "ok",
+      "detail": "JSON object (from text)"
+    },
+    {
+      "name": "schema",
+      "outcome": "ok",
+      "detail": "vendor/trace-claim.json (draft 2020-12)"
+    },
+    {
+      "name": "profile",
+      "outcome": "ok",
+      "detail": "tag:agentrust-io.com,2026:trace-v0.2"
+    },
+    {
+      "name": "subject",
+      "outcome": "ok",
+      "detail": "spiffe URI"
+    },
+    {
+      "name": "runtime",
+      "outcome": "ok",
+      "detail": "software-only with the all-zero measurement"
+    },
+    {
+      "name": "policy",
+      "outcome": "ok",
+      "detail": "enforcement_mode enforce"
+    },
+    {
+      "name": "cnf_key",
+      "outcome": "ok",
+      "detail": "OKP/Ed25519 public key, thumbprint mUgzPMSCUIl032h7VzIH1UI883RdYSKOolzbkUHAuUU"
+    },
+    {
+      "name": "signature",
+      "outcome": "fail",
+      "detail": "EdDSA signature does not verify over the canonical record with the cnf.jwk key"
+    },
+    {
+      "name": "appraisal",
+      "outcome": "ok",
+      "detail": "status none"
+    },
+    {
+      "name": "delegation",
+      "outcome": "skipped",
+      "detail": "no delegation block: a root (non-delegated) execution"
+    },
+    {
+      "name": "references",
+      "outcome": "ok",
+      "detail": "1 reference(s); resolvers are URIs only, nothing is fetched"
+    },
+    {
+      "name": "canonicalization",
+      "outcome": "skipped",
+      "detail": "all keys within the BMP; both orderings agree"
+    }
+  ],
+  "summary": {
+    "subject": "spiffe://bernstein.run/run/trust-record-vector-run/exec/trust-record-vector-solo",
+    "eat_profile": "tag:agentrust-io.com,2026:trace-v0.2",
+    "iat": 1700000007,
+    "model_id": "claude-sonnet-5",
+    "provider": "anthropic",
+    "data_class": "internal",
+    "key_thumbprint": "mUgzPMSCUIl032h7VzIH1UI883RdYSKOolzbkUHAuUU",
+    "has_delegation": false,
+    "references": 1,
+    "tool_calls": 1
+  },
+  "note": null
+}
