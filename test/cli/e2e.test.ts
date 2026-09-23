@@ -29,6 +29,15 @@ describe("bundle", () => {
     expect(src.startsWith("#!/usr/bin/env node")).toBe(true);
     expect(src).not.toMatch(/require\("(?!node:)[a-z@][^"]*"\)/);
   });
+  it("help: --help, -h and help print usage to stdout and exit 0; unknown input stays an error", () => {
+    for (const arg of ["--help", "-h", "help"]) {
+      const r = run([arg]);
+      expect(r).toMatchObject({ status: 0, stderr: "" });
+      expect(r.stdout).toMatch(/^usage: bernstein-attest <command>/);
+    }
+    expect(run(["bogus"])).toMatchObject({ status: 2, stdout: "" });
+    expect(run(["bogus"]).stderr).toMatch(/^usage: bernstein-attest <command>/);
+  });
   it("hook: journals from stdin, seals on Stop, exits 0 on garbage", () => {
     const write = fx("cc-posttooluse-write").replaceAll("/work/demo", project);
     expect(run(["hook", "--agent", "claude-code"], write)).toMatchObject({ status: 0, stdout: "", stderr: "" });
