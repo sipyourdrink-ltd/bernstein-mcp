@@ -58,14 +58,14 @@ describe("seal worker", () => {
     }) as unknown as typeof fetch;
   }
 
-  it("adds Content-Digest, the receipt header and a verify link; body untouched", async () => {
+  it("adds Bernstein-Origin-Digest, the receipt header and a verify link; body untouched", async () => {
     originFetch();
     const env: Env = { PAGE_SEAL_KEY: await testKey() };
     const res = await seal.fetch(new Request("https://bernstein.run/blog/example"), env);
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(HTML);
     expect(res.headers.get("cf-cache-status")).toBe("HIT");
-    expect(res.headers.get("content-digest")).toMatch(/^sha-256=:[A-Za-z0-9+/=]+:$/);
+    expect(res.headers.get("bernstein-origin-digest")).toMatch(/^sha-256=:[A-Za-z0-9+/=]+:$/);
     const link = res.headers.get("link")!;
     expect(link).toContain("https://mcp.bernstein.run/verify/");
     expect(link).toContain('rel="describedby"');
@@ -78,7 +78,7 @@ describe("seal worker", () => {
     originFetch();
     const res = await seal.fetch(new Request("https://bernstein.run/blog/example"), {});
     expect(res.status).toBe(200);
-    expect(res.headers.get("content-digest")).toBeNull();
+    expect(res.headers.get("bernstein-origin-digest")).toBeNull();
     expect(res.headers.get("bernstein-page-receipt")).toBeNull();
   });
 

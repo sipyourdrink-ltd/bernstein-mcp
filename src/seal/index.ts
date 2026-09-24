@@ -1,7 +1,10 @@
 // bernstein-page-seal: a Worker on the public site's HTML routes. It passes
 // every request to the origin untouched and, for a 200 HTML page, hashes the
 // exact bytes the reader receives, signs a page receipt with the seal key and
-// hands both back in headers. GET /.well-known/page-receipt?p=<path> builds
+// hands both back in headers. The digest covers the HTML as the origin served
+// it: the edge may append its own bot-detection snippet with a per-request
+// id after this Worker runs, so it is named Bernstein-Origin-Digest, not
+// RFC 9530 Content-Digest. GET /.well-known/page-receipt?p=<path> builds
 // the receipt for a page and sends the reader to the verifier with it.
 //
 // Nothing about the reader is read or kept: no address, no referrer, no
@@ -59,7 +62,7 @@ async function sealHtml(request: Request, env: Env): Promise<Response> {
   const page = await buildPageReceipt({ url, body, now: Math.floor(Date.now() / 1000), key });
 
   const headers = new Headers(origin.headers);
-  headers.set("Content-Digest", `sha-256=:${hexToBase64(page.contentSha256)}:`);
+  headers.set("Bernstein-Origin-Digest", `sha-256=:${hexToBase64(page.contentSha256)}:`);
   headers.set("Bernstein-Page-Receipt", base64Url(page.text));
   headers.append("Link", `<${verifyLink(env, page.text, page.receiptSha256)}>; rel="describedby"; type="text/html"; title="page receipt"`);
   headers.set("Bernstein-Page-Seal", `${key.keyId}; v=${SEAL_VERSION}`);
