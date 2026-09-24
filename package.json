@@ -16,6 +16,7 @@
     "@cfworker/json-schema": "4.1.1",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@noble/hashes": "2.4.0",
+    "cbor2": "^2.3.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
