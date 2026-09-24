@@ -1,0 +1,19 @@
+# bernstein-page-seal: signs the public site's HTML pages with a page receipt.
+# Deploy: npx wrangler deploy -c wrangler.seal.toml
+# Secret: npx wrangler secret put PAGE_SEAL_KEY -c wrangler.seal.toml  (private Ed25519 JWK)
+name = "bernstein-page-seal"
+main = "seal/index.ts"
+compatibility_date = "2026-09-18"
+account_id = "014c346e97ff3260b6956903e62f944d"
+workers_dev = false
+
+[[routes]]
+pattern = "bernstein.run/blog/*"
+zone_id = "0e38f085984bf987cfca78b7c7fcc8c9"
+
+[[routes]]
+pattern = "bernstein.run/.well-known/page-receipt*"
+zone_id = "0e38f085984bf987cfca78b7c7fcc8c9"
+
+[observability]
+enabled = true
