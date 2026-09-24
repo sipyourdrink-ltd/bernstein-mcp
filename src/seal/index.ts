@@ -35,9 +35,9 @@ function isHtml(response: Response): boolean {
   return response.status === 200 && (response.headers.get("content-type") ?? "").startsWith("text/html");
 }
 
-/** Only same-origin absolute paths; anything else falls back to the site root. */
-function pagePath(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
+/** Only same-origin paths the seal runs on; anything else → null. */
+function pagePath(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/blog/") || raw.includes("\\")) return null;
   return raw.split(/[?#]/)[0];
 }
 
@@ -70,7 +70,7 @@ async function receiptRedirect(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = pagePath(url.searchParams.get("p"));
   const key = await sealKey(env);
-  if (!key) return Response.redirect(`${verifier(env)}/verify`, 302);
+  if (!path || !key) return Response.redirect(`${verifier(env)}/verify`, 302);
   const pageUrl = new URL(path, url.origin);
   const origin = await fetch(new Request(pageUrl.toString(), { headers: { accept: "text/html" } }));
   if (!isHtml(origin)) return Response.redirect(`${verifier(env)}/verify`, 302);

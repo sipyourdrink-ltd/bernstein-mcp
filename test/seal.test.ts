@@ -97,11 +97,14 @@ describe("seal worker", () => {
     expect(new URL(loc).searchParams.get("r")!.length).toBeLessThan(6 * 1024);
   });
 
-  it("page-receipt only accepts same-origin paths", async () => {
+  it("page-receipt only accepts paths the seal runs on", async () => {
     originFetch();
     const env: Env = { PAGE_SEAL_KEY: await testKey() };
-    const res = await seal.fetch(new Request("https://bernstein.run/.well-known/page-receipt?p=//evil.example/x"), env);
-    expect(res.status).toBe(302);
+    for (const p of ["//evil.example/x", "/", "/about", "https://evil.example/blog/x"]) {
+      const res = await seal.fetch(new Request(`https://bernstein.run/.well-known/page-receipt?p=${encodeURIComponent(p)}`), env);
+      expect(res.status, p).toBe(302);
+      expect(res.headers.get("location")).toBe("https://mcp.bernstein.run/verify");
+    }
   });
 
   it("serves the public key", async () => {
