@@ -1,0 +1,2080 @@
+{
+  "$defs": {
+    "ApprovalMethod": {
+      "enum": [
+        "hardware-key",
+        "software-key",
+        "mfa-backed"
+      ],
+      "title": "ApprovalMethod",
+      "type": "string"
+    },
+    "ApprovedScope": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "risk_tier": {
+          "$ref": "#/$defs/RiskTier"
+        },
+        "approval_duration_seconds": {
+          "minimum": 1,
+          "title": "Approval Duration Seconds",
+          "type": "integer"
+        },
+        "conditions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conditions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "artifacts",
+        "risk_tier",
+        "approval_duration_seconds"
+      ],
+      "title": "ApprovedScope",
+      "type": "object"
+    },
+    "ApproverIdentityType": {
+      "description": "Spec Section 3.5 - human-attributable identity forms.",
+      "enum": [
+        "oidc",
+        "email",
+        "did"
+      ],
+      "title": "ApproverIdentityType",
+      "type": "string"
+    },
+    "ArtifactBindings": {
+      "additionalProperties": false,
+      "description": "Container for the 8 artifact bindings that live under `artifacts`.",
+      "properties": {
+        "system_prompt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SystemPromptBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "policy_bundle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyBundleBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tool_manifest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolManifestBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model_identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelIdentityBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rag_corpus": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RagCorpusBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "memory_baseline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MemoryBaselineBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "decision_trace": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DecisionTraceBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "supply_chain": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SupplyChainBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ArtifactBindings",
+      "type": "object"
+    },
+    "ArtifactName": {
+      "description": "Names that may be declared outside a composition-only binding.",
+      "enum": [
+        "system_prompt",
+        "policy_bundle",
+        "tool_manifest",
+        "model_identity",
+        "rag_corpus",
+        "memory_baseline",
+        "decision_trace",
+        "delegation_chain",
+        "supply_chain",
+        "hitl_record"
+      ],
+      "title": "ArtifactName",
+      "type": "string"
+    },
+    "AssuranceResult": {
+      "description": "Spec 3.2.1.1. Deliberately not reusing PoisoningResult: `clean` reads as\na property of the artifact, and an assessment result is a property of the\nsuite that was run.",
+      "enum": [
+        "passed",
+        "flagged",
+        "not-assessed"
+      ],
+      "title": "AssuranceResult",
+      "type": "string"
+    },
+    "AssuranceTest": {
+      "additionalProperties": false,
+      "description": "Bound behavioural assessment of artifact #1 - spec Section 3.2.1.1.\n\nSame shape and the same normative force as PoisoningScan is to the RAG\ncorpus: an assessment that ran and flagged cannot be issued as VALID. The\nabsence of one is reported rather than treated as a pass, because\n`system_prompt.hash` proves which prompt was approved and nothing about\nwhether the approved prompt behaves acceptably.\n\nA `passed` result asserts \"this suite, at this version, found nothing\". It\ndoes not assert that nothing is there; the suite's coverage bounds the\nclaim, which is why suite_id and suite_version are REQUIRED.",
+      "properties": {
+        "suite_id": {
+          "title": "Suite Id",
+          "type": "string"
+        },
+        "suite_version": {
+          "title": "Suite Version",
+          "type": "string"
+        },
+        "harness_version": {
+          "title": "Harness Version",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/AssuranceResult"
+        },
+        "assessed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assessed At"
+        },
+        "scenario_count": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scenario Count"
+        },
+        "evidence_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Uri"
+        },
+        "evidence_digest": {
+          "anyOf": [
+            {
+              "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Digest"
+        },
+        "assessed_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assessed By"
+        }
+      },
+      "required": [
+        "suite_id",
+        "suite_version",
+        "harness_version",
+        "result"
+      ],
+      "title": "AssuranceTest",
+      "type": "object"
+    },
+    "CryptoProfile": {
+      "enum": [
+        "standard",
+        "post-quantum"
+      ],
+      "title": "CryptoProfile",
+      "type": "string"
+    },
+    "DataClassification": {
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ],
+      "title": "DataClassification",
+      "type": "string"
+    },
+    "DataScope": {
+      "additionalProperties": false,
+      "description": "GDPR processing scope disclosure - spec Section 9.3 / REG-005.",
+      "properties": {
+        "personal_data_categories": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Personal Data Categories",
+          "type": "array"
+        },
+        "legal_basis": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Legal Basis",
+          "type": "array"
+        },
+        "automated_decision_making": {
+          "title": "Automated Decision Making",
+          "type": "boolean"
+        },
+        "dpia_reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dpia Reference"
+        }
+      },
+      "required": [
+        "automated_decision_making"
+      ],
+      "title": "DataScope",
+      "type": "object"
+    },
+    "DecisionTraceBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #7 - spec Section 3.2.7 (added in #24).",
+      "properties": {
+        "trace_type": {
+          "$ref": "#/$defs/TraceType"
+        },
+        "audit_chain_root": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Audit Chain Root",
+          "type": "string"
+        },
+        "audit_chain_uri": {
+          "title": "Audit Chain Uri",
+          "type": "string"
+        },
+        "signing_key_id": {
+          "title": "Signing Key Id",
+          "type": "string"
+        },
+        "audit_key_sealed": {
+          "title": "Audit Key Sealed",
+          "type": "boolean"
+        },
+        "first_entry_at": {
+          "format": "date-time",
+          "title": "First Entry At",
+          "type": "string"
+        },
+        "last_entry_at": {
+          "format": "date-time",
+          "title": "Last Entry At",
+          "type": "string"
+        },
+        "entry_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entry Count"
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_type",
+        "audit_chain_root",
+        "audit_chain_uri",
+        "signing_key_id",
+        "audit_key_sealed",
+        "first_entry_at",
+        "last_entry_at",
+        "bound_at"
+      ],
+      "title": "DecisionTraceBinding",
+      "type": "object"
+    },
+    "DeclaredIntent": {
+      "additionalProperties": false,
+      "description": "What the agent is for, declared by the issuer - spec Section 3.9.\n\nCarried in the signing pre-image, which is the whole point: the issuer\ndeclares the intent before the agent runs, so the running agent cannot\nchoose or revise it. An intent the governed agent asserts about itself\nproves nothing, because an agent that wants to do X simply declares X.\n\n``statement`` is the only field. There is deliberately no stored hash\nalongside it: two representations of one value can be made to disagree, and\na consumer that needs a stable reference derives it with\n:func:`agent_manifest.intent_hash`.",
+      "properties": {
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement"
+      ],
+      "title": "DeclaredIntent",
+      "type": "object"
+    },
+    "DelegationHop": {
+      "additionalProperties": false,
+      "description": "One hop in the A2A delegation chain (Artifact #8 - spec Section 3.4).",
+      "properties": {
+        "hop": {
+          "minimum": 0,
+          "title": "Hop",
+          "type": "integer"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        },
+        "principal_id": {
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "delegated_at": {
+          "format": "date-time",
+          "title": "Delegated At",
+          "type": "string"
+        },
+        "scope_grant": {
+          "$ref": "#/$defs/ScopeGrant"
+        },
+        "delegation_signature": {
+          "title": "Delegation Signature",
+          "type": "string"
+        },
+        "principal_manifest_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Principal Manifest Id"
+        },
+        "principal_attestation_hash": {
+          "anyOf": [
+            {
+              "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Principal Attestation Hash"
+        }
+      },
+      "required": [
+        "hop",
+        "principal_type",
+        "principal_id",
+        "delegated_at",
+        "scope_grant",
+        "delegation_signature"
+      ],
+      "title": "DelegationHop",
+      "type": "object"
+    },
+    "DeploymentType": {
+      "enum": [
+        "api",
+        "local",
+        "confidential-inference",
+        "third-party-api"
+      ],
+      "title": "DeploymentType",
+      "type": "string"
+    },
+    "DriftPolicy": {
+      "enum": [
+        "deny-on-drift",
+        "alert-on-drift",
+        "log-only"
+      ],
+      "title": "DriftPolicy",
+      "type": "string"
+    },
+    "EnforcementMode": {
+      "enum": [
+        "enforce",
+        "advisory",
+        "audit-only"
+      ],
+      "title": "EnforcementMode",
+      "type": "string"
+    },
+    "EscalationPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "trigger": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trigger"
+        },
+        "escalation_target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Escalation Target"
+        },
+        "timeout_action": {
+          "$ref": "#/$defs/TimeoutAction"
+        }
+      },
+      "required": [
+        "timeout_action"
+      ],
+      "title": "EscalationPolicy",
+      "type": "object"
+    },
+    "HitlApproval": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Approval Id",
+          "type": "string"
+        },
+        "approver_id": {
+          "title": "Approver Id",
+          "type": "string"
+        },
+        "approver_identity_type": {
+          "$ref": "#/$defs/ApproverIdentityType"
+        },
+        "approver_oidc_issuer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approver Oidc Issuer"
+        },
+        "approver_role": {
+          "title": "Approver Role",
+          "type": "string"
+        },
+        "approved_at": {
+          "format": "date-time",
+          "title": "Approved At",
+          "type": "string"
+        },
+        "approved_scope": {
+          "$ref": "#/$defs/ApprovedScope"
+        },
+        "approval_signature": {
+          "title": "Approval Signature",
+          "type": "string"
+        },
+        "approval_method": {
+          "$ref": "#/$defs/ApprovalMethod"
+        },
+        "evidence_uri": {
+          "title": "Evidence Uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "approval_id",
+        "approver_id",
+        "approver_identity_type",
+        "approver_role",
+        "approved_at",
+        "approved_scope",
+        "approval_signature",
+        "approval_method",
+        "evidence_uri"
+      ],
+      "title": "HitlApproval",
+      "type": "object"
+    },
+    "HitlRecord": {
+      "additionalProperties": false,
+      "description": "Artifact #10 - spec Section 3.5.\n\n``required=true`` with an empty ``approvals`` list is structurally valid:\napprovals attach post-issuance (the signing pre-image normalizes\n``approvals`` to ``[]`` - spec Section 3.6 / ADR-0006 as amended).\nWhether an approval must be present is enforced at verification time\n(``enforce_hitl``), not at schema validation time.",
+      "properties": {
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "approvals": {
+          "items": {
+            "$ref": "#/$defs/HitlApproval"
+          },
+          "title": "Approvals",
+          "type": "array"
+        },
+        "escalation_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EscalationPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hitl_runtime": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HitlRuntime"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "required"
+      ],
+      "title": "HitlRecord",
+      "type": "object"
+    },
+    "HitlRuntime": {
+      "additionalProperties": false,
+      "description": "Runtime human oversight capabilities - spec Section 3.5 (Art. 14(4)(a)).\n\nAll three endpoint/mechanism fields are REQUIRED for Level 2+ conformance;\nthey are modeled as optional because Level 0/1 manifests may omit the block\ncontents.",
+      "properties": {
+        "interrupt_endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interrupt Endpoint"
+        },
+        "override_mechanism": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverrideMechanism"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "monitoring_endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Monitoring Endpoint"
+        },
+        "automation_bias_disclosure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Automation Bias Disclosure"
+        }
+      },
+      "title": "HitlRuntime",
+      "type": "object"
+    },
+    "InclusionProof": {
+      "additionalProperties": false,
+      "description": "Transparency log inclusion proof - spec Section 3.6.",
+      "properties": {
+        "checkpoint": {
+          "title": "Checkpoint",
+          "type": "string"
+        },
+        "hashes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hashes",
+          "type": "array"
+        },
+        "tree_size": {
+          "minimum": 0,
+          "title": "Tree Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "checkpoint",
+        "hashes",
+        "tree_size"
+      ],
+      "title": "InclusionProof",
+      "type": "object"
+    },
+    "KeyType": {
+      "enum": [
+        "software",
+        "hsm",
+        "tee-sealed"
+      ],
+      "title": "KeyType",
+      "type": "string"
+    },
+    "LogRetention": {
+      "additionalProperties": false,
+      "description": "Declared log retention policy - spec Section 8.1 / REG-002.",
+      "properties": {
+        "minimum_retention_days": {
+          "minimum": 1,
+          "title": "Minimum Retention Days",
+          "type": "integer"
+        },
+        "regulatory_retention_override": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Regulatory Retention Override"
+        },
+        "retention_enforced_by": {
+          "title": "Retention Enforced By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "minimum_retention_days",
+        "retention_enforced_by"
+      ],
+      "title": "LogRetention",
+      "type": "object"
+    },
+    "ManifestProfile": {
+      "description": "The assurance scope of an Agent Manifest (spec Section 3.1).",
+      "enum": [
+        "composition-only"
+      ],
+      "title": "ManifestProfile",
+      "type": "string"
+    },
+    "ManifestSignature": {
+      "additionalProperties": false,
+      "description": "Manifest signature block - spec Section 3.6.\n\nSignature field conditionality:\n  - algorithm=Ed25519 or ML-DSA-65 -> signature_value REQUIRED\n  - algorithm=hybrid-Ed25519-ML-DSA-65 -> classical_signature and\n    pq_signature REQUIRED (signature_value may be empty/omitted)",
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/SignatureAlgorithm"
+        },
+        "key_id": {
+          "title": "Key Id",
+          "type": "string"
+        },
+        "key_type": {
+          "$ref": "#/$defs/KeyType"
+        },
+        "signed_at": {
+          "format": "date-time",
+          "title": "Signed At",
+          "type": "string"
+        },
+        "signed_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Signed Fields",
+          "type": "array"
+        },
+        "signature_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Signature Value"
+        },
+        "classical_signature": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Classical Signature"
+        },
+        "pq_signature": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pq Signature"
+        }
+      },
+      "required": [
+        "algorithm",
+        "key_id",
+        "key_type",
+        "signed_at"
+      ],
+      "title": "ManifestSignature",
+      "type": "object"
+    },
+    "McpServer": {
+      "additionalProperties": false,
+      "properties": {
+        "server_id": {
+          "title": "Server Id",
+          "type": "string"
+        },
+        "image_digest": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Image Digest",
+          "type": "string"
+        },
+        "slsa_level": {
+          "$ref": "#/$defs/SlsaLevel"
+        },
+        "phase2_attested": {
+          "default": false,
+          "title": "Phase2 Attested",
+          "type": "boolean"
+        },
+        "sbom": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Sbom"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "server_id",
+        "image_digest",
+        "slsa_level"
+      ],
+      "title": "McpServer",
+      "type": "object"
+    },
+    "MemoryBaselineBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #6 - spec Section 3.2.6.\n\nConditionality (spec 3.2.6):\n  - memory_type=none       -> snapshot_hash MUST be null; ttl_seconds omitted\n  - memory_type=session    -> snapshot_hash REQUIRED\n  - memory_type=persistent -> snapshot_hash and ttl_seconds REQUIRED\n  - memory_type=shared     -> snapshot_hash, ttl_seconds and\n                              shared_memory_owner REQUIRED\nttl_seconds: min 3600 (1 hour), max 7776000 (90 days).",
+      "properties": {
+        "baseline_id": {
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "title": "Baseline Id",
+          "type": "string"
+        },
+        "snapshot_hash": {
+          "anyOf": [
+            {
+              "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapshot Hash"
+        },
+        "memory_type": {
+          "$ref": "#/$defs/MemoryType"
+        },
+        "store": {
+          "title": "Store",
+          "type": "string"
+        },
+        "approved_at": {
+          "format": "date-time",
+          "title": "Approved At",
+          "type": "string"
+        },
+        "ttl_seconds": {
+          "anyOf": [
+            {
+              "maximum": 7776000,
+              "minimum": 3600,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ttl Seconds"
+        },
+        "drift_policy": {
+          "$ref": "#/$defs/DriftPolicy"
+        },
+        "shared_memory_owner": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shared Memory Owner"
+        },
+        "check_interval_seconds": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Check Interval Seconds"
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "baseline_id",
+        "memory_type",
+        "store",
+        "approved_at",
+        "drift_policy",
+        "bound_at"
+      ],
+      "title": "MemoryBaselineBinding",
+      "type": "object"
+    },
+    "MemoryType": {
+      "enum": [
+        "none",
+        "session",
+        "persistent",
+        "shared"
+      ],
+      "title": "MemoryType",
+      "type": "string"
+    },
+    "ModelAttestationType": {
+      "description": "Spec Section 3.2.4 - hash-bound vs provider-asserted model identity.",
+      "enum": [
+        "hash-bound",
+        "provider-asserted"
+      ],
+      "title": "ModelAttestationType",
+      "type": "string"
+    },
+    "ModelIdentityBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #4 - spec Section 3.2.4.\n\nmodel_hash conditionality (spec 3.2.4):\n  - deployment_type=api or third-party-api -> model_hash MUST be null and\n    model_attestation_type MUST be 'provider-asserted'\n  - deployment_type=local or confidential-inference -> model_hash REQUIRED\n    and model_attestation_type MUST be 'hash-bound'",
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "capability_level": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Level"
+        },
+        "safety_alignment_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Safety Alignment Version"
+        },
+        "quantization": {
+          "default": "none",
+          "title": "Quantization",
+          "type": "string"
+        },
+        "deployment_type": {
+          "$ref": "#/$defs/DeploymentType"
+        },
+        "model_hash": {
+          "anyOf": [
+            {
+              "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Hash"
+        },
+        "model_attestation_type": {
+          "$ref": "#/$defs/ModelAttestationType"
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model_id",
+        "version",
+        "deployment_type",
+        "model_attestation_type",
+        "bound_at"
+      ],
+      "title": "ModelIdentityBinding",
+      "type": "object"
+    },
+    "OperationalLifecycle": {
+      "additionalProperties": false,
+      "description": "EU AI Act Art. 13(3)(c)/(e) lifecycle disclosures - spec Section 9.4.",
+      "properties": {
+        "expected_lifetime_days": {
+          "minimum": 1,
+          "title": "Expected Lifetime Days",
+          "type": "integer"
+        },
+        "planned_maintenance_schedule": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Planned Maintenance Schedule"
+        },
+        "update_policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Update Policy"
+        },
+        "reissuance_triggers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Reissuance Triggers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "expected_lifetime_days"
+      ],
+      "title": "OperationalLifecycle",
+      "type": "object"
+    },
+    "OverrideMechanism": {
+      "description": "Spec Section 3.5 - hitl_runtime override mechanisms (EU AI Act Art. 14(4)(a)).",
+      "enum": [
+        "kill-signal",
+        "suspend-and-hold",
+        "require-confirmation"
+      ],
+      "title": "OverrideMechanism",
+      "type": "string"
+    },
+    "PoisoningResult": {
+      "enum": [
+        "clean",
+        "flagged",
+        "not-scanned"
+      ],
+      "title": "PoisoningResult",
+      "type": "string"
+    },
+    "PoisoningScan": {
+      "additionalProperties": false,
+      "properties": {
+        "scanner_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scanner Version"
+        },
+        "scanned_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scanned At"
+        },
+        "result": {
+          "$ref": "#/$defs/PoisoningResult"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "PoisoningScan",
+      "type": "object"
+    },
+    "PolicyBundleBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #2 - spec Section 3.2.2.",
+      "properties": {
+        "hash": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        },
+        "policy_language": {
+          "$ref": "#/$defs/PolicyLanguage"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "enforcement_mode": {
+          "$ref": "#/$defs/EnforcementMode"
+        },
+        "scope": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Scope",
+          "type": "array"
+        },
+        "agt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agt Version"
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hash",
+        "policy_language",
+        "version",
+        "enforcement_mode",
+        "bound_at"
+      ],
+      "title": "PolicyBundleBinding",
+      "type": "object"
+    },
+    "PolicyLanguage": {
+      "enum": [
+        "cedar",
+        "rego",
+        "yaml-agt",
+        "composite"
+      ],
+      "title": "PolicyLanguage",
+      "type": "string"
+    },
+    "PrincipalType": {
+      "enum": [
+        "human",
+        "system",
+        "agent"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    },
+    "RagCorpusBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #5 - spec Section 3.2.5.",
+      "properties": {
+        "corpus_id": {
+          "title": "Corpus Id",
+          "type": "string"
+        },
+        "merkle_root": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Merkle Root",
+          "type": "string"
+        },
+        "document_count": {
+          "minimum": 0,
+          "title": "Document Count",
+          "type": "integer"
+        },
+        "ingestion_policy_hash": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Ingestion Policy Hash",
+          "type": "string"
+        },
+        "vector_store": {
+          "title": "Vector Store",
+          "type": "string"
+        },
+        "embedding_model": {
+          "title": "Embedding Model",
+          "type": "string"
+        },
+        "last_updated": {
+          "format": "date-time",
+          "title": "Last Updated",
+          "type": "string"
+        },
+        "poisoning_scan": {
+          "$ref": "#/$defs/PoisoningScan"
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "corpus_id",
+        "merkle_root",
+        "document_count",
+        "ingestion_policy_hash",
+        "vector_store",
+        "embedding_model",
+        "last_updated",
+        "poisoning_scan",
+        "bound_at"
+      ],
+      "title": "RagCorpusBinding",
+      "type": "object"
+    },
+    "RiskTier": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "RiskTier",
+      "type": "string"
+    },
+    "RugPullPolicy": {
+      "enum": [
+        "deny-and-alert",
+        "deny-and-hold",
+        "require-reapproval"
+      ],
+      "title": "RugPullPolicy",
+      "type": "string"
+    },
+    "Sbom": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/SbomFormat"
+        },
+        "schema_version": {
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "sbom_hash": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Sbom Hash",
+          "type": "string"
+        },
+        "sbom_uri": {
+          "title": "Sbom Uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "schema_version",
+        "document_id",
+        "sbom_hash",
+        "sbom_uri"
+      ],
+      "title": "Sbom",
+      "type": "object"
+    },
+    "SbomFormat": {
+      "enum": [
+        "cyclonedx",
+        "spdx"
+      ],
+      "title": "SbomFormat",
+      "type": "string"
+    },
+    "ScopeGrant": {
+      "additionalProperties": false,
+      "properties": {
+        "tools": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tools",
+          "type": "array"
+        },
+        "data_classifications": {
+          "items": {
+            "$ref": "#/$defs/DataClassification"
+          },
+          "title": "Data Classifications",
+          "type": "array"
+        },
+        "max_delegation_depth": {
+          "default": 3,
+          "minimum": 0,
+          "title": "Max Delegation Depth",
+          "type": "integer"
+        },
+        "ttl_seconds": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ttl Seconds"
+        },
+        "constraints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Constraints",
+          "type": "array"
+        }
+      },
+      "title": "ScopeGrant",
+      "type": "object"
+    },
+    "SignatureAlgorithm": {
+      "enum": [
+        "Ed25519",
+        "ML-DSA-65",
+        "hybrid-Ed25519-ML-DSA-65"
+      ],
+      "title": "SignatureAlgorithm",
+      "type": "string"
+    },
+    "SlsaLevel": {
+      "enum": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "title": "SlsaLevel",
+      "type": "integer"
+    },
+    "SlsaProvenance": {
+      "additionalProperties": false,
+      "description": "Spec Section 3.2.8 - DSSE/in-toto aligned provenance pointer.",
+      "properties": {
+        "builder_id": {
+          "title": "Builder Id",
+          "type": "string"
+        },
+        "subject_digest": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Subject Digest",
+          "type": "string"
+        },
+        "provenance_uri": {
+          "title": "Provenance Uri",
+          "type": "string"
+        },
+        "rekor_entry_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rekor Entry Id"
+        },
+        "declared_level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlsaLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "builder_id",
+        "subject_digest",
+        "provenance_uri"
+      ],
+      "title": "SlsaProvenance",
+      "type": "object"
+    },
+    "SourceBundleBinding": {
+      "additionalProperties": false,
+      "description": "Signed binding to the package from which this manifest was derived.",
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/SourceBundleFormat"
+        },
+        "digest": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "digest"
+      ],
+      "title": "SourceBundleBinding",
+      "type": "object"
+    },
+    "SourceBundleFormat": {
+      "description": "Packaging formats a signed manifest can bind as its source.",
+      "enum": [
+        "agent-plugins-1.0.0"
+      ],
+      "title": "SourceBundleFormat",
+      "type": "string"
+    },
+    "SupplyChainBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #9 - spec Section 3.2.8 (renumbered from 3.2.7 in #24).",
+      "properties": {
+        "container_image_digest": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Container Image Digest",
+          "type": "string"
+        },
+        "base_image_digest": {
+          "anyOf": [
+            {
+              "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Image Digest"
+        },
+        "slsa_provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlsaProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sbom": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Sbom"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mcp_servers": {
+          "items": {
+            "$ref": "#/$defs/McpServer"
+          },
+          "title": "Mcp Servers",
+          "type": "array"
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "container_image_digest",
+        "bound_at"
+      ],
+      "title": "SupplyChainBinding",
+      "type": "object"
+    },
+    "SystemPromptBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #1 - spec Section 3.2.1.",
+      "properties": {
+        "hash": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        },
+        "hash_algorithm": {
+          "default": "SHA-256",
+          "title": "Hash Algorithm",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "classification": {
+          "$ref": "#/$defs/DataClassification"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "safety_level": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Safety Level"
+        },
+        "assurance_test": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssuranceTest"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hash",
+        "version",
+        "classification",
+        "bound_at"
+      ],
+      "title": "SystemPromptBinding",
+      "type": "object"
+    },
+    "TimeoutAction": {
+      "enum": [
+        "deny",
+        "suspend",
+        "alert"
+      ],
+      "title": "TimeoutAction",
+      "type": "string"
+    },
+    "ToolEntry": {
+      "additionalProperties": false,
+      "description": "One tool in the bound catalog - spec Section 3.2.3.\n\nField names follow the spec's protocol-agnostic forms: ``tool_name`` is\nthe protocol-native tool name (e.g. MCP tool name) and ``endpoint_id``\nis the SPIFFE URI of the tool endpoint server (e.g. MCP server).",
+      "properties": {
+        "tool_id": {
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "tool_name": {
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "endpoint_id": {
+          "title": "Endpoint Id",
+          "type": "string"
+        },
+        "schema_hash": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Schema Hash",
+          "type": "string"
+        },
+        "description_hash": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Description Hash",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "permission_scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Permission Scope"
+        },
+        "egress_destinations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Egress Destinations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "tool_id",
+        "tool_name",
+        "endpoint_id",
+        "schema_hash",
+        "description_hash",
+        "version"
+      ],
+      "title": "ToolEntry",
+      "type": "object"
+    },
+    "ToolManifestBinding": {
+      "additionalProperties": false,
+      "description": "Artifact #3 - spec Section 3.2.3.",
+      "properties": {
+        "catalog_hash": {
+          "pattern": "^(sha256|shake256):[0-9a-f]{64}$",
+          "title": "Catalog Hash",
+          "type": "string"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/ToolEntry"
+          },
+          "title": "Tools",
+          "type": "array"
+        },
+        "allow_dynamic_registration": {
+          "default": false,
+          "title": "Allow Dynamic Registration",
+          "type": "boolean"
+        },
+        "rug_pull_policy": {
+          "$ref": "#/$defs/RugPullPolicy"
+        },
+        "bound_at": {
+          "format": "date-time",
+          "title": "Bound At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalog_hash",
+        "tools",
+        "rug_pull_policy",
+        "bound_at"
+      ],
+      "title": "ToolManifestBinding",
+      "type": "object"
+    },
+    "TraceType": {
+      "enum": [
+        "hash-chained",
+        "merkle-log"
+      ],
+      "title": "TraceType",
+      "type": "string"
+    },
+    "TransparencyLogEntry": {
+      "additionalProperties": false,
+      "description": "Sigstore-aligned transparency log entry - spec Section 3.6.\n\nA TOP-LEVEL manifest field (spec 3.1 / SPEC-10), populated after log\nsubmission. NOT part of the signing pre-image.",
+      "properties": {
+        "log_id": {
+          "title": "Log Id",
+          "type": "string"
+        },
+        "log_index": {
+          "minimum": 0,
+          "title": "Log Index",
+          "type": "integer"
+        },
+        "entry_uuid": {
+          "title": "Entry Uuid",
+          "type": "string"
+        },
+        "integrated_time": {
+          "minimum": 0,
+          "title": "Integrated Time",
+          "type": "integer"
+        },
+        "inclusion_proof": {
+          "$ref": "#/$defs/InclusionProof"
+        }
+      },
+      "required": [
+        "log_id",
+        "log_index",
+        "entry_uuid",
+        "integrated_time",
+        "inclusion_proof"
+      ],
+      "title": "TransparencyLogEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Root Agent Manifest document - spec Section 3.1.",
+  "properties": {
+    "@context": {
+      "default": "https://manifest.agentrust-io.com/v0.2/context.json",
+      "title": "@Context",
+      "type": "string"
+    },
+    "@type": {
+      "default": "AgentManifest",
+      "title": "@Type",
+      "type": "string"
+    },
+    "manifest_id": {
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "title": "Manifest Id",
+      "type": "string"
+    },
+    "previous_manifest_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Previous Manifest Id"
+    },
+    "agent_id": {
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "agent_instance_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent Instance Id"
+    },
+    "version": {
+      "default": "0.1",
+      "title": "Version",
+      "type": "string"
+    },
+    "min_verifier_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Min Verifier Version"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "issuer": {
+      "title": "Issuer",
+      "type": "string"
+    },
+    "crypto_profile": {
+      "$ref": "#/$defs/CryptoProfile",
+      "default": "standard"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ManifestProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "unbound_artifacts": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ArtifactName"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Unbound Artifacts"
+    },
+    "source_bundle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SourceBundleBinding"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "artifacts": {
+      "$ref": "#/$defs/ArtifactBindings"
+    },
+    "attestation": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Attestation"
+    },
+    "delegation_chain": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/DelegationHop"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Delegation Chain"
+    },
+    "hitl_record": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HitlRecord"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "prior_transparency_log_entry": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TransparencyLogEntry"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "log_retention": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LogRetention"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "data_scope": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DataScope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "operational_lifecycle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationalLifecycle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "intent": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeclaredIntent"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ManifestSignature"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "transparency_log_entry": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TransparencyLogEntry"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "manifest_id",
+    "agent_id",
+    "issued_at",
+    "expires_at",
+    "issuer",
+    "artifacts"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

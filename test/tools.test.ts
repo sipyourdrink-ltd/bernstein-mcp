@@ -49,6 +49,7 @@ describe("tools/list", () => {
       "list_adapters",
       "list_presets",
       "server_info",
+      "verify_agent_manifest",
       "verify_chain",
       "verify_delegation_chain",
       "verify_receipt",

@@ -5,11 +5,12 @@ import bernsteinTagRaw from "../data/bernstein_tag.txt";
 import presetsJson from "../data/presets.json";
 import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES, MAX_TRACE_RECORDS } from "./limits.js";
 import { explainReceipt } from "./verify/explain.js";
-import { fromParsed, type JsonValue } from "./verify/pyjson.js";
+import { fromParsed, type JsonValue, type JsonObject } from "./verify/pyjson.js";
 import { verifyReceiptBounded } from "./verify/bounded.js";
 import { CHECK_ORDER, parseChainText, producerFamily, verifyChain, type ChainVerification } from "./verify/receipt.js";
 import { KEYS_PATH, signVerdict, VERIFIER_URL, type Signer } from "./verify/attest.js";
 import { verifyTraceRecord, TRACE_CHECK_ORDER } from "./verify/trace/record.js";
+import { verifyAgentManifest, MANIFEST_CHECK_ORDER } from "./verify/manifest/verify.js";
 import { verifyDelegationChain, CODE_DETAIL, type ChainContext } from "./verify/trace/chain.js";
 import { explainTraceMapping } from "./verify/trace/mapping.js";
 import { parseJson } from "./verify/pyjson.js";
@@ -326,6 +327,68 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
         verdict: v.verdict,
         failing_check: v.failing_check,
         record_sha256: v.record_sha256,
+        checks: v.checks,
+        summary: v.summary,
+        note: v.note,
+      });
+    },
+  );
+
+  server.registerTool(
+    "verify_agent_manifest",
+    {
+      title: "Verify an Agent Manifest",
+      description:
+        "Agent Manifest v0.2 conformance checks on one manifest, stateless, no account: schema (vendored agent-manifest.schema.json), " +
+        "profile context, version, canonicalization, COSE envelope signature (Ed25519, key identified by kid in the protected header; ML-DSA-65 is reported unverifiable). " +
+        "Optionally checks that a TRACE Trust Record cites this manifest by digest. Nothing is fetched; resolvers are checked as URIs only. " +
+        "The manifest hash is sha256 over the COSE payload bytes (or RFC 8785 canonical JSON for object input).",
+      inputSchema: {
+        manifest: z
+          .union([z.string().max(MAX_BODY_BYTES), z.record(z.string(), z.unknown())])
+          .describe("The agent manifest: COSE envelope as base64 string, or the parsed JSON object (payload)."),
+        trustRecord: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe("Optional TRACE v0.2 Trust Record to check if it cites this manifest (references[].rel == 'agent-manifest')."),
+      },
+      outputSchema: {
+        verdict: z.enum(["valid", "invalid", "unverifiable"]),
+        failing_check: z.enum(MANIFEST_CHECK_ORDER).nullable(),
+        manifest_sha256: z.string(),
+        checks: z.array(
+          z.object({
+            name: z.enum(MANIFEST_CHECK_ORDER),
+            outcome: z.enum(["ok", "fail", "unverifiable", "skipped"]),
+            detail: z.string(),
+          }),
+        ),
+        summary: z
+          .object({
+            manifest_id: z.string(),
+            agent_id: z.string(),
+            version: z.string(),
+            issued_at: z.string(),
+            expires_at: z.string(),
+            issuer: z.string(),
+            crypto_profile: z.string(),
+            manifest_hash: z.string(),
+            key_kind: z.string(),
+            key_kid: z.string(),
+          })
+          .nullable(),
+        note: z.string().nullable(),
+      },
+    },
+    async ({ manifest, trustRecord }) => {
+      // manifest is string | Record<string, unknown> from the zod schema
+      // verifyAgentManifest accepts Uint8Array | string | JsonObject
+      const v = await verifyAgentManifest(manifest as string | Uint8Array | JsonObject, trustRecord as JsonObject | undefined);
+      if (opts.trace) opts.trace.verdict = v.verdict;
+      return reply({
+        verdict: v.verdict,
+        failing_check: v.failing_check,
+        manifest_sha256: v.manifest_sha256,
         checks: v.checks,
         summary: v.summary,
         note: v.note,
