@@ -3,8 +3,8 @@
 // receipt does, and a single changed byte of the page must not.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import seal, { type Env } from "../src/seal/index.js";
-import { buildPageReceipt, importSealKey } from "../src/seal/receipt.js";
+import seal, { type Env } from "../seal/index.js";
+import { buildPageReceipt, importSealKey } from "../seal/receipt.js";
 import { verifyReceipt } from "../src/verify/receipt.js";
 import { base64ToBytes } from "../src/verify/receipt.js";
 

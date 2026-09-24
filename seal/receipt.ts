@@ -4,10 +4,10 @@
 // binding is signed with the seal key. Everything the verifier recomputes is
 // computed here with the verifier's own functions, so the receipt is valid
 // by construction and a single changed byte of the page is not.
-import { journalEventHash, journalPayloadHash, sha256Hex, sha256HexLarge, spineEntryHash } from "../verify/chains.js";
-import { JsonNumber, compareCodePoints, pyDumps, utf8, type JsonObject } from "../verify/pyjson.js";
-import { PAYLOAD_TYPE, RECEIPT_TYPE, bytesToBase64, pae } from "../verify/receipt.js";
-import { jwkThumbprint } from "../verify/attest.js";
+import { journalEventHash, journalPayloadHash, sha256Hex, sha256HexLarge, spineEntryHash } from "../src/verify/chains.js";
+import { JsonNumber, compareCodePoints, pyDumps, utf8, type JsonObject } from "../src/verify/pyjson.js";
+import { PAYLOAD_TYPE, RECEIPT_TYPE, bytesToBase64, pae } from "../src/verify/receipt.js";
+import { jwkThumbprint } from "../src/verify/attest.js";
 
 export const SEAL_PRODUCER = "bernstein-page-seal";
 export const SEAL_VERSION = "0.1.0";
