@@ -340,7 +340,7 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
       title: "Verify an Agent Manifest",
       description:
         "Agent Manifest v0.2 conformance checks on one manifest, stateless, no account: schema (vendored agent-manifest.schema.json), " +
-        "profile context, version, canonicalization, COSE envelope signature (Ed25519 or ML-DSA-65 with key identified by kid in protected header). " +
+        "profile context, version, canonicalization, COSE envelope signature (Ed25519, key identified by kid in the protected header; ML-DSA-65 is reported unverifiable). " +
         "Optionally checks that a TRACE Trust Record cites this manifest by digest. Nothing is fetched; resolvers are checked as URIs only. " +
         "The manifest hash is sha256 over the COSE payload bytes (or RFC 8785 canonical JSON for object input).",
       inputSchema: {
