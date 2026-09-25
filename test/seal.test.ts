@@ -115,3 +115,24 @@ describe("seal worker", () => {
     expect(body.keys[0].crv).toBe("Ed25519");
   });
 });
+
+describe("verdict page for a page receipt", () => {
+  it("names the page, links the published key, and keeps run-receipt wording for run receipts", async () => {
+    const { renderVerdict } = await import("../src/pages/verify.js");
+    const key = (await importSealKey(await testKey()))!;
+    const page = await buildPageReceipt({ url: new URL("https://bernstein.run/blog/example"), body: new TextEncoder().encode(HTML), now: 1_790_000_000, key });
+    const v = await verifyReceipt(page.text);
+    const html = renderVerdict(page.text, v);
+    expect(html).toContain("the one that was signed");
+    expect(html).toContain("valid · page receipt");
+    expect(html).toContain("bernstein.run/blog/example");
+    expect(html).toContain("https://bernstein.run/.well-known/page-receipt/keys.json");
+    expect(html).toContain(key.publicJwk.kid);
+    expect(html).not.toContain("every chain <em>recomputes</em>");
+
+    const tampered = page.text.replace('"path":"/blog/example"', '"path":"/blog/other"');
+    const bad = renderVerdict(tampered, await verifyReceipt(tampered));
+    expect(bad).toContain("invalid · page receipt");
+    expect(bad).not.toContain("the one that was signed");
+  });
+});

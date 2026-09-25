@@ -101,29 +101,62 @@ function signedBlock(signed: SignedVerdict | null): string {
     </details>`;
 }
 
+const PAGE_SEAL_KEYS = "https://bernstein.run/.well-known/page-receipt/keys.json";
+
+/** A page receipt (producer bernstein-page-seal): the page it names and when it was served, or null. */
+export function pageOf(receipt: string, v: ReceiptVerification): { url: string; servedAt: number; bytes: number } | null {
+  if (!v.summary?.producer?.startsWith("bernstein-page-seal")) return null;
+  try {
+    const r = JSON.parse(receipt) as { journal?: { events?: { host?: unknown; path?: unknown; served_at?: unknown; bytes?: unknown }[] } };
+    const e = r.journal?.events?.[0];
+    if (!e || typeof e.host !== "string" || typeof e.path !== "string" || typeof e.served_at !== "number" || typeof e.bytes !== "number") return null;
+    return { url: `https://${e.host}${e.path}`, servedAt: e.served_at, bytes: e.bytes };
+  } catch {
+    return null;
+  }
+}
+
+function utc(epoch: number): string {
+  return new Date(epoch * 1000).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+}
+
+function pageExplanation(p: { url: string; servedAt: number; bytes: number }, v: ReceiptVerification): string {
+  const lines =
+    v.verdict === "valid"
+      ? [
+          `This is a receipt for one web page: <a href="${escapeHtml(p.url)}">${escapeHtml(p.url.replace(/^https:\/\//, ""))}</a>, as served at ${utc(p.servedAt)} (${p.bytes.toLocaleString("en")} bytes of HTML).`,
+          "What it proves: the page's sha256 is recorded in the receipt, the receipt is signed, and not one byte of it has changed since it was signed.",
+          `Whose key: <code>${escapeHtml(v.summary?.key_id ?? "")}</code>. Compare it with the site's published key at <a href="${PAGE_SEAL_KEYS}">bernstein.run/.well-known/page-receipt/keys.json</a>.`,
+          "What it does not prove: that the page is correct — only that it is exactly the page that was signed. Nothing about you was read or stored to make this.",
+        ]
+      : ["This receipt names a web page, but it does not verify: something in it changed after it was signed, so it proves nothing about that page."];
+  return `<ul class="explain">${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
+}
+
 export function renderVerdict(receipt: string, v: ReceiptVerification, opts: { expected?: string; signed?: SignedVerdict | null } = {}): string {
+  const pg = pageOf(receipt, v);
   const mismatch =
     opts.expected && v.receipt_sha256 && opts.expected !== v.receipt_sha256
       ? `<p class="note" role="alert">these bytes have digest <code>sha256:${escapeHtml(v.receipt_sha256)}</code>, not the <code>sha256:${escapeHtml(opts.expected)}</code> this address names. the verdict below is for what you pasted.</p>`
       : "";
   const canonical = v.receipt_sha256 ? `/verify/${v.receipt_sha256}` : "/verify";
   return page({
-    title: `${v.verdict} · run receipt`,
+    title: `${v.verdict} · ${pg ? "page receipt" : "run receipt"}`,
     description: "Verification ledger for one bernstein run receipt.",
     current: "verify",
     body: `
 <header class="pre"><span class="meta">verified just now · nothing stored</span></header>
-<h1><span>${v.verdict === "valid" ? "every chain <em>recomputes</em>." : v.verdict === "invalid" ? "this receipt <em>does not hold</em>." : "not a receipt the verifier <em>can judge</em>."}</span></h1>
+<h1><span>${pg && v.verdict === "valid" ? "this page is <em>the one that was signed</em>." : v.verdict === "valid" ? "every chain <em>recomputes</em>." : v.verdict === "invalid" ? "this receipt <em>does not hold</em>." : "not a receipt the verifier <em>can judge</em>."}</span></h1>
 ${mismatch}
 <div class="grid">
   <section>
-    ${renderLedger(v, { link: true })}
+    ${renderLedger(v, { link: true, runLabel: pg ? `page ${pg.url.replace(/^https:\/\//, "")} · served ${utc(pg.servedAt)}` : undefined })}
     ${shareLink(receipt, v)}
     ${signedBlock(opts.signed ?? null)}
   </section>
   <aside>
     <p class="label">what this means</p>
-    ${renderExplanation(v)}
+    ${pg ? pageExplanation(pg, v) : renderExplanation(v)}
     <p class="hint" style="margin-top:22px"><a href="${canonical}">this verdict's address</a> is the receipt's own digest. <a href="/verify">verify another →</a></p>
   </aside>
 </div>`,
