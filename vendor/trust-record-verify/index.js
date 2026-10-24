@@ -1,0 +1,18 @@
+/**
+ * A TypeScript verifier for TRACE v0.2 Trust Records.
+ *
+ * Nothing here reaches the network, reads a file or imports a Node built-in: the
+ * verifier runs in a browser, an edge worker, Deno, Bun and Node.js 20 and later
+ * on WebCrypto alone. Every input a caller cannot vouch for, including the record
+ * and a revocation bundle, is treated as untrusted data.
+ *
+ * Start at `verifyRecord`.
+ */
+export { decodeBase64url, encodeBase64url } from "./base64url.js";
+export { DELEGATION_DIGEST_ALGORITHMS, parentRecordHash, verifyDelegationLink, } from "./delegation.js";
+export { FAILURE_CODES, TraceVerificationError } from "./errors.js";
+export { canonicalize, canonicalJson, JCS_SAFE_INTEGER } from "./jcs.js";
+export { jwkThumbprint, keyIdentifiers } from "./jwk.js";
+export { bundleDigest, checkRevocationBundle, NO_CHECK, } from "./revocation.js";
+export { bundleSchemaViolations, recordSchemaViolations, SCHEMA_DIGESTS, } from "./schema.js";
+export { ACCEPTED_PROFILES, TRACE_PROFILE_V0_2, verifyRecord, } from "./verify.js";
