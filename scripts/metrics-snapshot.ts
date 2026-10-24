@@ -149,7 +149,7 @@ async function main(): Promise<void> {
       const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
         method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: "query($acc:String!,$script:String!,$from:Time!,$to:Time!){viewer{accounts(filter:{accountTag:$acc}){workersInvocationsAdaptive(limit:10000,filter:{scriptName:$script,datetime_geq:$from,datetime_lt:$to}){sum{requests errors subrequests} dimensions{status}}}}}",
+          query: "query($acc:String!,$script:String!,$from:Time!,$to:Time!){viewer{accounts(filter:{accountTag:$acc}){workersInvocationsAdaptive(limit:10000,filter:{scriptName:$script,datetime_geq:$from,datetime_lt:$to}){sum{requests errors subrequests} dimensions{datetime status}}}}}",
           variables: { acc: "014c346e97ff3260b6956903e62f944d", script: "bernstein-mcp", from: since, to: until },
         }),
       });
