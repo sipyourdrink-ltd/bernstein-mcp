@@ -27,7 +27,7 @@ describe("metrics snapshot", () => {
       line({ status: 413 }), line({ status: 500 }), line({ status: 503 }), line({ status: 204 }),
       "invalid", "null", JSON.stringify({ evt: "other" }), JSON.stringify({ logs: [null] }),
     ]);
-    expect(result).toMatchObject({ requests: 6, statuses: { "200": 1, "204": 1, "429": 1, "413": 1, "500": 1, "503": 1 }, statusClasses: { "2xx": 2, "4xx": 2, "5xx": 2 }, status413: 1, status429: 1, logged5xx: 2, tools: { check: 1 }, verdicts: { pass: 1 }, topCountries: [{ country: "IL", requests: 1 }, { country: "US", requests: 1 }] });
+    expect(result).toMatchObject({ requests: 6, statuses: { "200": 1, "204": 1, "429": 1, "413": 1, "500": 1, "503": 1 }, statusClasses: { "2xx": 2, "4xx": 2, "5xx": 2 }, status413: 1, status429: 1, loggedStatusGte500: 2, tools: { check: 1 }, verdicts: { pass: 1 }, topCountries: [{ country: "IL", requests: 1 }, { country: "US", requests: 1 }] });
   });
   it("deduplicates initialize tuples and excludes noninitialize or unnamed clients", () => {
     const result = summarizeLogs([
@@ -46,6 +46,15 @@ describe("metrics snapshot", () => {
     expect(result.topCountries).toHaveLength(10);
     expect(summarizeLogs([]).distinctClients).toBe(0);
   });
+  it("counts inherited object names as ordinary keys", () => {
+    const logs = summarizeLogs([line({ tool: "__proto__", verdict: "constructor", country: "toString", status: 600 })]);
+    expect(logs.tools["__proto__"]).toBe(1);
+    expect(logs.verdicts["constructor"]).toBe(1);
+    expect(logs.topCountries).toEqual([{ country: "toString", requests: 1 }]);
+    expect(logs.statusClasses["5xx"]).toBe(0);
+    expect(logs.loggedStatusGte500).toBe(1);
+    expect(summarizeInvocations([{ sum: { requests: 2 }, dimensions: { status: "__proto__" } }]).statuses["__proto__"]).toBe(2);
+  });
   it("renders measured facts and exact thresholds without advice", () => {
     const output = renderMarkdown({ window: { since: "2026-09-18T00:00:00Z", until: "2026-10-01T00:00:00Z" }, api: null, logs: summarizeLogs([line({ status: 500 })]) });
     const threshold = "<20 clients freeze; 20–100 keep; >=100 bring T8 forward";
@@ -53,6 +62,7 @@ describe("metrics snapshot", () => {
     expect(output).toContain("API requests: unknown; logged requests: 1");
     expect(output).toContain("Measured distinct (client, client_version) pairs on initialize: 0");
     expect(output).toContain("retention: unverified");
+    expect(output).toContain("## Data limits");
     expect(output).not.toMatch(/recommend|freeze now/i);
     expect(output.replace(threshold, "")).not.toMatch(/keep/i);
   });

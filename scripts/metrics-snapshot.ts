@@ -21,7 +21,7 @@ export function summarizeInvocations(rows: readonly unknown[]) {
     const values = valid.map(row => finite(object(row.sum)?.[field]));
     return values.every(value => value !== null) ? values.reduce<number>((total, value) => total + (value ?? 0), 0) : null;
   }
-  const statuses: Record<string, number> = {};
+  const statuses: Record<string, number> = Object.create(null);
   const timestamps: string[] = [];
   for (const row of valid) {
     const dimensions = object(row.dimensions);
@@ -61,15 +61,17 @@ export function summarizeLogs(lines: readonly string[]) {
       }
     }
   }
-  const statuses: Record<string, number> = {};
+  const statuses: Record<string, number> = Object.create(null);
   const statusClasses = { "2xx": 0, "4xx": 0, "5xx": 0 };
-  const tools: Record<string, number> = {};
-  const verdicts: Record<string, number> = {};
-  const countries: Record<string, number> = {};
+  let loggedStatusGte500 = 0;
+  const tools: Record<string, number> = Object.create(null);
+  const verdicts: Record<string, number> = Object.create(null);
+  const countries: Record<string, number> = Object.create(null);
   const clients = new Map<string, { client: string; client_version: string | null }>();
   for (const event of events) {
     if (typeof event.status === "number" && Number.isInteger(event.status)) {
       count(statuses, String(event.status));
+      if (event.status >= 500) loggedStatusGte500++;
       const group = `${Math.floor(event.status / 100)}xx`;
       if (group in statusClasses) statusClasses[group as keyof typeof statusClasses]++;
     }
@@ -84,7 +86,7 @@ export function summarizeLogs(lines: readonly string[]) {
   const clientList = [...clients.values()].sort((a, b) => a.client.localeCompare(b.client) || (a.client_version ?? "").localeCompare(b.client_version ?? ""));
   return {
     requests: events.length, statuses, statusClasses,
-    status413: statuses["413"] ?? 0, status429: statuses["429"] ?? 0, logged5xx: statusClasses["5xx"],
+    status413: statuses["413"] ?? 0, status429: statuses["429"] ?? 0, loggedStatusGte500,
     tools, verdicts,
     topCountries: Object.entries(countries).sort(([a, ac], [b, bc]) => bc - ac || a.localeCompare(b)).slice(0, 10).map(([country, requests]) => ({ country, requests })),
     distinctClients: clients.size, clients: clientList,
@@ -104,7 +106,7 @@ export function renderMarkdown(summary: Snapshot): string {
     "# MCP metrics snapshot", `Window: ${summary.window.since} → ${summary.window.until}`,
     `API: ${summary.apiState ?? (summary.api ? "available" : "unavailable")}`,
     `API requests: ${show(summary.api?.requests)}; logged requests: ${summary.logs.requests}`,
-    `API exceptions: ${show(summary.api?.exceptions)}; logged HTTP 5xx: ${summary.logs.logged5xx}`,
+    `API exceptions: ${show(summary.api?.exceptions)}; logged status>=500: ${summary.logs.loggedStatusGte500}`,
     `API coverage: ${summary.api?.coverage ?? "unknown"}; earliest: ${show(summary.api?.earliest)}; latest: ${show(summary.api?.latest)}; retention: unverified`,
     `API statuses: ${JSON.stringify(summary.api?.statuses ?? {})}`,
     `Logged statuses: ${JSON.stringify(summary.logs.statuses)}`,
@@ -113,6 +115,7 @@ export function renderMarkdown(summary: Snapshot): string {
     `Top 10 countries: ${JSON.stringify(summary.logs.topCountries)}`,
     `Measured distinct (client, client_version) pairs on initialize: ${summary.logs.distinctClients}`,
     `Clients: ${JSON.stringify(summary.logs.clients)}`, `Thresholds: ${THRESHOLDS}`,
+    "## Data limits",
     ...(summary.limits ?? LIMITS).map(limit => `- ${limit}`),
     "Log timestamps are not guaranteed; the supplied log file is not verified to cover the requested window.",
   ].join("\n\n") + "\n";
