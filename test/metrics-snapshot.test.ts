@@ -20,6 +20,23 @@ describe("metrics snapshot", () => {
       { dimensions: {} },
     ])).toMatchObject({ earliest: "2026-09-19T00:00:00.000Z", latest: "2026-09-20T00:00:00.000Z", coverage: "partial" });
   });
+  it("reports partial coverage when all timestamp-bearing rows start after the requested window", () => {
+    expect(summarizeInvocations([
+      { dimensions: { datetime: "2026-09-20T00:00:00Z" } },
+      { timestamp: "2026-09-19T00:00:00Z" },
+    ], "2026-09-18T00:00:00Z")).toMatchObject({ earliest: "2026-09-19T00:00:00.000Z", coverage: "partial" });
+  });
+  it("keeps window completeness unknown when the earliest timestamp equals since", () => {
+    expect(summarizeInvocations([
+      { dimensions: { datetime: "2026-09-18T00:00:00Z" } },
+      { timestamp: "2026-09-19T00:00:00Z" },
+    ], "2026-09-18T02:00:00+02:00").coverage).toBe("timestamp-bearing rows only; window completeness unknown");
+  });
+  it("keeps coverage unknown when the requested window has no returned timestamps", () => {
+    expect(summarizeInvocations([
+      { sum: { requests: 8 }, dimensions: { status: "ok" } },
+    ], "2026-09-18T00:00:00Z")).toMatchObject({ coverage: "unknown", earliest: null, latest: null });
+  });
   it("counts direct and tail events while ignoring noise", () => {
     const result = summarizeLogs([
       line({ status: 200, rpc: "initialize", client: "a", client_version: "1", tool: "check", verdict: "pass", country: "IL" }),

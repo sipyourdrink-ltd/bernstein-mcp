@@ -14,7 +14,7 @@ function count(map: Record<string, number>, key: unknown): void {
 function finite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
-export function summarizeInvocations(rows: readonly unknown[]) {
+export function summarizeInvocations(rows: readonly unknown[], requestedSince?: string) {
   const valid = rows.map(object).filter((row): row is Row => row !== undefined);
   function sum(field: string): number | null {
     if (valid.length === 0) return null;
@@ -34,9 +34,10 @@ export function summarizeInvocations(rows: readonly unknown[]) {
     if (typeof timestamp === "string" && Number.isFinite(Date.parse(timestamp))) timestamps.push(new Date(timestamp).toISOString());
   }
   timestamps.sort();
+  const startsAfterRequestedWindow = requestedSince !== undefined && timestamps.length > 0 && Date.parse(timestamps[0]) > Date.parse(requestedSince);
   return {
     requests: sum("requests"), exceptions: sum("errors"), subrequests: sum("subrequests"), statuses,
-    coverage: timestamps.length === 0 ? "unknown" : timestamps.length === valid.length ? "timestamp-bearing rows only; window completeness unknown" : "partial",
+    coverage: timestamps.length === 0 ? "unknown" : startsAfterRequestedWindow || timestamps.length !== valid.length ? "partial" : "timestamp-bearing rows only; window completeness unknown",
     earliest: timestamps[0] ?? null, latest: timestamps[timestamps.length - 1] ?? null,
     retention: "unverified",
   };
@@ -162,7 +163,7 @@ async function main(): Promise<void> {
         const accounts = viewer?.accounts;
         const rows = Array.isArray(accounts) ? object(accounts[0])?.workersInvocationsAdaptive : undefined;
         if (!Array.isArray(rows)) { console.error(raw); apiState = "API response missing invocation rows"; }
-        else { api = summarizeInvocations(rows); apiState = "available; window coverage unknown"; }
+        else { api = summarizeInvocations(rows, since); apiState = "available; window coverage unknown"; }
       }
     } catch (error) { console.error(error instanceof Error ? error.message : String(error)); apiState = "API error; see stderr"; }
   }
