@@ -14,17 +14,22 @@
   },
   "dependencies": {
     "@cfworker/json-schema": "4.1.1",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.0",
     "@noble/hashes": "2.4.0",
     "cbor2": "^2.3.0",
-    "zod": "4.6.5"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260918.1",
     "@types/node": "24.10.1",
     "esbuild": "0.28.2",
     "typescript": "^5.4.0",
-    "vitest": "4.1.11",
-    "wrangler": "4.134.0"
+    "vitest": "4.1.12",
+    "wrangler": "4.149.0"
+  },
+  "overrides": {
+    "miniflare": {
+      "undici": "7.30.1"
+    }
   }
 }
