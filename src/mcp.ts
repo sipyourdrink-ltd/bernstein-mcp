@@ -1,9 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { verifyRecord, TraceVerificationError } from "../vendor/trust-record-verify/index.js";
 import adaptersJson from "../data/adapters.json";
 import bernsteinTagRaw from "../data/bernstein_tag.txt";
 import presetsJson from "../data/presets.json";
-import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES, MAX_TRACE_RECORDS } from "./limits.js";
+import { MAX_BODY_BYTES, MAX_CHAIN_ENTRIES, MAX_TRACE_RECORDS, parseJsonWithDepthLimit } from "./limits.js";
 import { explainReceipt } from "./verify/explain.js";
 import { fromParsed, type JsonValue, type JsonObject } from "./verify/pyjson.js";
 import { verifyReceiptBounded } from "./verify/bounded.js";
@@ -331,6 +332,71 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
         summary: v.summary,
         note: v.note,
       });
+    },
+  );
+
+  server.registerTool(
+    "trace_verify_record",
+    {
+      title: "Verify a TRACE record with trust-record-verify",
+      description: "Verify a TRACE v0.2 Ed25519 Trust Record locally with optional caller public key and freshness controls. Nothing is fetched. Embedded keys establish internal consistency only; revocation is not affirmed.",
+      inputSchema: {
+        record: traceRecordInput,
+        trusted_key: z.object({ kty: z.literal("OKP"), crv: z.literal("Ed25519"), x: z.string(),
+          kid: z.string().optional(), use: z.string().optional(), alg: z.string().optional(),
+          key_ops: z.array(z.string()).optional(), ext: z.boolean().optional(),
+        }).strict().optional().describe("Caller-trusted public Ed25519 JWK; private key data is forbidden."),
+        now: z.number().int().nonnegative().optional(),
+        max_age_seconds: z.number().int().nonnegative().nullable().optional(),
+      },
+      outputSchema: {
+        verdict: verdictSchema,
+        failure_code: z.string().nullable(),
+        message: z.string().nullable(),
+        profile: z.string().nullable(),
+        trusted_key_thumbprint: z.string().nullable(),
+        trusted_key_source: z.enum(["caller", "record"]).nullable(),
+        revocation_outcome: z.string().nullable(),
+        implementation: z.literal("agentrust-io/trace-spec trust-record-verify@404c278"),
+        note: z.string(),
+      },
+    },
+    async ({ record, trusted_key, now, max_age_seconds }) => {
+      const base = {
+        profile: null,
+        trusted_key_thumbprint: null,
+        trusted_key_source: null,
+        revocation_outcome: null,
+        implementation: "agentrust-io/trace-spec trust-record-verify@404c278" as const,
+        note: "no_check_performed and unverified_for_revocation are not affirming revocation appraisals. A key source of record proves internal consistency, not who produced the record.",
+      };
+      const finish = (out: Record<string, unknown> & { verdict: "valid" | "invalid" | "unverifiable" }) => {
+        if (opts.trace) opts.trace.verdict = out.verdict;
+        return reply(out);
+      };
+      let obj: unknown = record;
+      if (typeof record === "string") {
+        const parsed = parseJsonWithDepthLimit(record);
+        if (!parsed.ok) return finish({ ...base, verdict: "unverifiable", failure_code: "record_unparseable", message: "Record JSON could not be parsed within the depth limit." });
+        obj = parsed.value;
+      }
+      try {
+        const result = await verifyRecord(obj, {
+          allowEmbeddedKey: trusted_key === undefined,
+          ...(trusted_key === undefined ? {} : { trustedKey: trusted_key }),
+          ...(now === undefined ? {} : { now }),
+          ...(max_age_seconds === undefined ? {} : { maxAgeSeconds: max_age_seconds }),
+        });
+        return finish({ ...base, verdict: "valid", failure_code: null, message: null,
+          profile: result.profile, trusted_key_thumbprint: result.trustedKeyThumbprint,
+          trusted_key_source: result.trustedKeySource, revocation_outcome: result.revocation.outcome });
+      } catch (error) {
+        if (error instanceof TraceVerificationError) {
+          const verdict = error.code === "invalid_argument" || error.code === "crypto_unavailable" ? "unverifiable" : "invalid";
+          return finish({ ...base, verdict, failure_code: error.code, message: error.message });
+        }
+        return finish({ ...base, verdict: "unverifiable", failure_code: "internal_error", message: "Verification could not be completed." });
+      }
     },
   );
 

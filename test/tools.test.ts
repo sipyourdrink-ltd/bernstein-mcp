@@ -49,6 +49,7 @@ describe("tools/list", () => {
       "list_adapters",
       "list_presets",
       "server_info",
+      "trace_verify_record",
       "verify_agent_manifest",
       "verify_chain",
       "verify_delegation_chain",
@@ -246,6 +247,66 @@ describe("verify_trace_record", () => {
     const out = await call("verify_trace_record", { record: "[]" });
     expect(out.verdict).toBe("unverifiable");
     expect(out.summary).toBeNull();
+  });
+});
+
+describe("trace_verify_record", () => {
+  const options = { now: 1700000007, max_age_seconds: null };
+  const record = () => JSON.parse(bernsteinRecordText("single-execution"));
+  function common(out: any) {
+    expect(out.implementation).toBe("agentrust-io/trace-spec trust-record-verify@404c278");
+    expect(out.note).toContain("no_check_performed");
+    expect(out.note).toContain("unverified_for_revocation");
+    expect(out.note).toContain("not affirming");
+    expect(out.note).toContain("internal consistency");
+    expect(out.note).toContain("not who produced");
+  }
+
+  it("verifies the historical fixture explicitly with the embedded key", async () => {
+    const out = await call("trace_verify_record", { record: bernsteinRecordText("single-execution"), ...options });
+    expect(out).toMatchObject({ verdict: "valid", failure_code: null, message: null,
+      trusted_key_source: "record", revocation_outcome: "no_check_performed", profile: record().eat_profile });
+    expect(out.trusted_key_thumbprint).toEqual(expect.any(String));
+    common(out);
+  });
+
+  it("preserves default freshness enforcement", async () => {
+    const out = await call("trace_verify_record", { record: record() });
+    expect(out).toMatchObject({ verdict: "invalid", failure_code: "record_stale" });
+    common(out);
+  });
+
+  it("reports a tampered signature", async () => {
+    const out = await call("trace_verify_record", { record: { ...record(), subject: "spiffe://bernstein.run/run/tampered" }, ...options });
+    expect(out).toMatchObject({ verdict: "invalid", failure_code: "signature_invalid" });
+    common(out);
+  });
+
+  it("uses the caller public key and rejects a mismatching key", async () => {
+    const trusted_key = record().cnf.jwk;
+    const out = await call("trace_verify_record", { record: record(), trusted_key, ...options });
+    expect(out).toMatchObject({ verdict: "valid", trusted_key_source: "caller" });
+    common(out);
+    const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]) as CryptoKeyPair;
+    const other = await crypto.subtle.exportKey("jwk", pair.publicKey);
+    const mismatch = await call("trace_verify_record", { record: record(), trusted_key: other, ...options });
+    expect(mismatch).toMatchObject({ verdict: "invalid", failure_code: "cnf_key_mismatch" });
+    common(mismatch);
+  });
+
+  it.each(["{bad", "[".repeat(40) + "0" + "]".repeat(40)])("bounds string JSON parsing: %s", async (record) => {
+    const out = await call("trace_verify_record", { record, ...options });
+    expect(out).toMatchObject({ verdict: "unverifiable", failure_code: "record_unparseable",
+      profile: null, trusted_key_thumbprint: null, trusted_key_source: null, revocation_outcome: null });
+    common(out);
+  });
+
+  it("rejects a negative age at the input schema", async () => {
+    await expect(call("trace_verify_record", { record: record(), max_age_seconds: -1 })).rejects.toThrow(/max_age_seconds/);
+  });
+
+  it("rejects private key material at the input schema", async () => {
+    await expect(call("trace_verify_record", { record: record(), trusted_key: { ...record().cnf.jwk, d: "secret" } })).rejects.toThrow(/unrecognized key.*d/i);
   });
 });
 
