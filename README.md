@@ -1,4 +1,8 @@
-![bernstein-mcp](assets/banner.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sipyourdrink-ltd/bernstein-mcp/main/assets/brand/header-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/sipyourdrink-ltd/bernstein-mcp/main/assets/brand/header-light.svg">
+  <img alt="bernstein-mcp: Stateless MCP endpoint that verifies bernstein run receipts and hash chains. Command: claude mcp add --transport http bernstein https://mcp.bernstein.run/mcp." src="https://raw.githubusercontent.com/sipyourdrink-ltd/bernstein-mcp/main/assets/brand/header-light.svg">
+</picture>
 
 # bernstein-mcp
 
