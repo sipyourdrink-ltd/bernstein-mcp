@@ -13,8 +13,8 @@
  *
  *   1. Shape, against the bundle schema and the statement schema it refers to.
  *   2. One log per bundle: every statement names the bundle's `log_id`.
- *   3. Who signed the set: an `ed25519` signature by a key the caller trusts,
- *      over the RFC 8785 form of the bundle with `sig` absent.
+ *   3. Who signed the set: an `ed25519`, `ES256` or `ES384` signature by a key
+ *      the caller trusts, over the RFC 8785 form of the bundle with `sig` absent.
  *   4. What the set says about this key. A statement naming it rejects the
  *      record, whatever the bundle's age: the statement was authenticated with
  *      the bundle, and section 3.2.3 gives a statement no expiry.

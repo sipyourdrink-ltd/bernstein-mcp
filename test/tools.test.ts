@@ -254,7 +254,7 @@ describe("trace_verify_record", () => {
   const options = { now: 1700000007, max_age_seconds: null };
   const record = () => JSON.parse(bernsteinRecordText("single-execution"));
   function common(out: any) {
-    expect(out.implementation).toBe("agentrust-io/trace-spec trust-record-verify@404c278");
+    expect(out.implementation).toBe("agentrust-io/trace-spec trust-record-verify@1ea0657");
     expect(out.note).toContain("no_check_performed");
     expect(out.note).toContain("unverified_for_revocation");
     expect(out.note).toContain("not affirming");

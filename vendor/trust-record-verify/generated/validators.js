@@ -2,9 +2,9 @@
 // schemaDigests. Do not edit; run `npm run build`.
 import { formats as __formats } from "../uri.js";
 import { codePointLength as __codePointLength } from "../text.js";
-export const schemaDigests = { "trace-claim.json": "289293315d5a480cebcb8962b4d2937738421040e4bb8dcd13c1540073443ae5", "trace-revocation-bundle.json": "1229dba26b8d4b28deb4c3f052631bf9766183e956ba518ba7ac83c1d023fc5b", "trace-revocation.json": "a25ee0ba7df0098e38dbe4448cd6e6ac22ec723ec5d7d479728aacbbdf81a062" };
+export const schemaDigests = { "trace-claim.json": "2829e9780c1957b88da0036690d3e3fcdeda7a17cb700a551ab52fb6c2d838ce", "trace-revocation-bundle.json": "218dc2b3b4fe35804e7d0ea95ae3c7cc13824d437549a55333f4020228d3b931", "trace-revocation.json": "a25ee0ba7df0098e38dbe4448cd6e6ac22ec723ec5d7d479728aacbbdf81a062" };
 export const validateRecord = validate20;
-const schema31 = { "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://agentrust-io.com/schema/trace-v0.2.json", "$defs": { "canonicalizableValue": { "description": "Any JSON value section 3.2.2 can canonicalize without ambiguity. RFC 7517 lets a JWK carry members this schema does not name, those members are covered by the signature, and they therefore need the constraint the named fields carry: `number` is excluded, and an integer is held to the safe-integer domain. Recursive, because such a member may itself be an array or an object.", "anyOf": [{ "type": ["string", "boolean", "null"] }, { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }, { "type": "array", "items": { "$ref": "#/$defs/canonicalizableValue" } }, { "type": "object", "additionalProperties": { "$ref": "#/$defs/canonicalizableValue" } }] } }, "title": "TRACE Trust Record", "description": "A TRACE v0.2 Trust Record: a signed governance record for an AI agent execution, which can carry hardware attestation evidence.", "type": "object", "required": ["eat_profile", "iat", "subject", "model", "runtime", "policy", "data_class", "build_provenance", "appraisal", "cnf"], "properties": { "eat_profile": { "type": "string", "const": "tag:agentrust-io.com,2026:trace-v0.2", "description": "EAT profile URI identifying this as a TRACE v0.2 Trust Record." }, "iat": { "type": "integer", "description": "Issued-at time as Unix epoch seconds.", "minimum": 1700000000, "maximum": 9007199254740991 }, "subject": { "type": "string", "description": "Workload identity as a SPIFFE SVID URI or DID URI. A SPIFFE ID carries a trust domain and a workload path within it; a DID carries a lowercase method name, per DID Core section 3.1, and a method-specific identifier. A prefix alone is not an identity: spiffe://example.org names a trust domain and no workload.", "pattern": "^(spiffe://[^/]+/.+|did:[a-z0-9]+:.+)$" }, "model": { "type": "object", "description": "Model identity and provenance.", "required": ["provider", "model_id"], "properties": { "provider": { "type": "string", "description": "Model provider (e.g. 'example-provider')." }, "model_id": { "type": "string", "description": "Model identifier as used by the provider." }, "version": { "type": "string", "description": "Model version or snapshot identifier." }, "weights_digest": { "type": "string", "description": "SHA-256 or SHA-384 digest of the model weights. Required for local/confidential-inference deployments.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "aibom_uri": { "type": "string", "format": "uri", "description": "URI to SPDX 3.0 AI Profile or CycloneDX 1.7 ML-BOM for this model." } }, "additionalProperties": false }, "runtime": { "type": "object", "description": "TEE measurement chain binding the workload to hardware.", "required": ["platform", "measurement"], "properties": { "platform": { "type": "string", "enum": ["intel-tdx", "amd-sev-snp", "azure-cvm-sev-snp", "nvidia-h100", "nvidia-blackwell", "aws-nitro", "arm-cca", "google-confidential-space", "tpm2", "software-only"], "description": "Hardware platform providing the root of trust. software-only marks records with no hardware root of trust, for example a development-mode execution, or a record assembled from evidence produced outside the runtime (origin.kind other than self requires this value; see spec 3.1.1). Such records must never be treated as attested evidence." }, "measurement": { "type": "string", "description": "Hardware measurement of the workload (e.g. TDX MRTD, SEV measurement, TPM PCR composite).", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "rim_uri": { "type": "string", "format": "uri", "description": "URI to the vendor-published Reference Integrity Manifest for this measurement." }, "nonce": { "type": "string", "description": "Freshness nonce binding the attestation report to this record (base64url, no padding)." }, "firmware_version": { "type": "string", "description": "Firmware or microcode version included in the measurement." } }, "additionalProperties": false }, "policy": { "type": "object", "description": "Policy bundle sealed to the TEE measurement.", "required": ["bundle_hash", "enforcement_mode"], "properties": { "bundle_hash": { "type": "string", "description": "SHA-256 or SHA-384 digest of the policy bundle in force at execution time.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "enforcement_mode": { "type": "string", "enum": ["enforce", "advisory", "silent", "declared"], "default": "enforce", "description": "How the policy named by bundle_hash related to this execution. enforce: evaluated and blocked on deny. advisory: evaluated, logged, allowed. silent: evaluated and allowed, including on deny, with operational logs suppressed; the audit chain still records every would-have-denied decision. declared: the policy is named and bound into the signed record and NOTHING evaluated it, which is the honest value for a producer with no policy engine, such as an agent framework. Gateways MUST default to enforce. A deployment MUST explicitly configure silent. declared is never a default, a producer that evaluates policy MUST NOT use it, and a consumer MUST NOT read it as evidence that any rule was checked." }, "version": { "type": "string", "description": "Policy bundle version (semantic versioning recommended)." }, "policy_uri": { "type": "string", "format": "uri", "description": "URI to the policy bundle for verification." } }, "additionalProperties": false }, "data_class": { "type": "string", "description": "Highest-sensitivity data classification of inputs and outputs processed during this execution.", "examples": ["public", "internal", "confidential", "restricted", "top-secret"] }, "tool_transcript": { "type": "object", "description": "Bound hash of the MCP/A2A tool-call transcript. OPTIONAL for Phase 1 records; REQUIRED for Phase 2+.", "required": ["hash"], "properties": { "hash": { "type": "string", "description": "SHA-256 or SHA-384 digest of the full tool-call transcript, bound into the EAT envelope.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "call_count": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "description": "Total number of tool calls in this transcript." }, "transcript_uri": { "type": "string", "format": "uri", "description": "URI to the full transcript on the transparency log." } }, "additionalProperties": false }, "delegation": { "type": "object", "description": "A2A profile: links this record to the delegating hop's Trust Record. Present when this execution acted on delegated authority; absent on a root (non-delegated) execution. A chain of these forms an offline-verifiable delegation DAG.", "required": ["parent_record_hash", "credential_id"], "properties": { "parent_record_hash": { "type": "string", "description": "SHA-256 or SHA-384 digest of the parent hop's Trust Record.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "credential_id": { "type": "string", "minLength": 1, "description": "Identifier of the delegation credential this hop acted under." } }, "additionalProperties": false }, "origin": { "type": "object", "description": "Where the evidence in this record came from, when that is not this runtime. Absent means the runtime produced its own record, which is what a consumer assumes and what every hardware profile is. Present means something else assembled the record from evidence it did not measure. A non-self kind cannot carry a hardware runtime.platform.", "required": ["kind", "producer"], "properties": { "kind": { "type": "string", "enum": ["self", "third-party-control-plane", "log-import"], "description": "self: the runtime produced its own record. third-party-control-plane: assembled from another vendor's runtime governance output, asserted by the system that produced it with no root outside that system. log-import: assembled from a log or export whose producer is not a control plane." }, "producer": { "type": "string", "minLength": 1, "description": "Identifier of the system that produced the source evidence." }, "source_event_id": { "type": "string", "minLength": 1, "description": "Identifier of the source event in the producing system, so a record can be traced back to it." }, "ingested_at": { "type": "integer", "minimum": 1700000000, "maximum": 9007199254740991, "description": "Unix time at which the source evidence was ingested. Distinct from iat, which is when this record was issued." } }, "additionalProperties": false }, "references": { "type": "array", "description": "Facts outside this record that it points at. Spec section 3.1.2. An entry is a pointer, not evidence: the signature attests that this record points there, not the truth of what it points at. The block is assurance-neutral and does not affect runtime.platform. Two further rules in 3.1.2 bind verifiers rather than records, so this schema cannot express them: a verifier MUST NOT reject a record because an entry cannot be resolved, and MUST NOT treat a resolved entry as attested evidence.", "items": { "type": "object", "required": ["rel", "id", "resolver"], "properties": { "rel": { "type": "string", "minLength": 1, "description": "Relationship type. The registered values are a registry that grows, so this is not a closed set. authorized-intent: an authorization decided before execution, held in another system. approval-outcome: an attributable human approval attached to a step-up or defer decision. behavior-trace: a behavioural record of what the agent did, of which this record is the environment evidence. condition-appraisal: an independent check's finding on whether a stated condition is established by a stated subject, bound to both by digest. observed-effect: a signed record of the state change an observer outside the agent saw over one interval, with the state before and after, the paths observed and the authority change ran under." }, "id": { "type": "string", "minLength": 1, "description": "Identifier of the referenced fact within the resolver's system." }, "resolver": { "type": "string", "minLength": 1, "description": "Identifier of the party obliged to resolve id. A producer that cannot name one omits the entry. Which identifiers are self-asserted is not decidable from the record, so this constrains the field's presence and not its value." }, "retention": { "type": "string", "pattern": "^P(\\d+W|(\\d+Y(\\d+M)?(\\d+D)?|\\d+M(\\d+D)?|\\d+D)(T(\\d+H(\\d+M)?(\\d+S)?|\\d+M(\\d+S)?|\\d+S))?|T(\\d+H(\\d+M)?(\\d+S)?|\\d+M(\\d+S)?|\\d+S))$", "description": "Period for which resolver undertakes to keep id resolvable, as an ISO 8601 duration. An undertaking only: nothing in this specification enforces it." }, "digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest of the referenced object, when the producer holds it at issue time." } }, "additionalProperties": false } }, "reproducibility": { "type": "object", "description": "The claim that re-executing a named deterministic function of the run, the producer's coordination logic, over a pinned input closure yields a transcript whose RFC 8785 canonical digest equals transcript_digest. Spec section 3.1.4. Producer-side: the claim, not its result, which is an appraisal under appraisal.method. The block does not affect runtime.platform, and the record signature covers it. A closure that omits anything which can change the transcript makes the claim malformed rather than weak; that is detected at re-execution, not by this schema.", "required": ["function", "code_identity", "input_closure", "transcript_digest"], "properties": { "function": { "type": "string", "minLength": 1, "description": "Name under which the implementation at code_identity exposes the deterministic function re-executed. The convention for invoking it is part of the artifact at code_identity, and so content-addressed with it." }, "code_identity": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest of the implementation artifact that contains function. It resolves to an artifact a verifier can obtain without the producer. For a producer whose coordination logic ships in the artifact build_provenance names, this is the same value as build_provenance.digest." }, "code_resolver": { "type": "string", "minLength": 1, "description": "Where the artifact at code_identity is obtained: the party obliged to retain it, in the sense section 3.1.2 gives resolver. Omitted when the digest alone locates the artifact, as on a package index; present otherwise, since a verifier that cannot obtain the artifact reports not-attempted." }, "input_closure": { "type": "array", "description": "The complete content-addressed set of everything function reads: the initial configuration and every recorded external interaction, model calls included. An entry the function does not read is surplus and has no effect on the outcome.", "items": { "type": "object", "description": "One content-addressed input of function. The shape section 3.1.2 gives a reference, without rel or retention, since every entry stands in the same relation to the claim, and with digest required on every entry.", "required": ["id", "digest", "resolver"], "properties": { "id": { "type": "string", "minLength": 1, "description": "Identifier of the input within the resolver's system." }, "digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest of the input. A verifier holds the input only once what it obtained matches this value, which the producer signed." }, "resolver": { "type": "string", "minLength": 1, "description": "Identifier of the party obliged to resolve id, in the sense section 3.1.2 gives resolver. A run's closure is run-private by construction, so the producer is an ordinary resolver here; the bar is integrity, not provenance." } }, "additionalProperties": false } }, "transcript_digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest, in the algorithm its prefix names, over the RFC 8785 canonical bytes of the transcript function produces when re-executed over input_closure. The transcript is the function's complete output as a JSON value; its shape belongs to the profile or annex that describes the function." } }, "additionalProperties": false }, "build_provenance": { "type": "object", "description": "SLSA provenance for the workload (agent code + container image).", "required": ["slsa_level", "digest"], "properties": { "slsa_level": { "type": "integer", "minimum": 0, "maximum": 3, "description": "SLSA Build Level achieved. Level 0 = software-only (development/staging); Level 2 minimum for TRACE conformance; Level 3 for production mark." }, "builder": { "type": "string", "description": "SLSA builder URI." }, "digest": { "type": "string", "description": "SHA-256 or SHA-384 digest of the container image or workload binary.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "provenance_uri": { "type": "string", "format": "uri", "description": "URI to the SLSA provenance attestation on a Sigstore/Rekor or compatible log." }, "provenance_depth": { "type": "string", "enum": ["surface", "builder", "transitive"], "description": "Depth of supply-chain verification the issuer claims for this record. surface: digest matches the workload artifact and builder is in a trusted set. builder: all of surface, plus provenance_uri resolves, the SLSA attestation signature verifies, its subject matches digest, and its builder.id matches builder. transitive: all of builder, plus every entry in the SLSA materials / resolvedDependencies has a verifiable publisher attestation. Records omitting this field are treated as surface by verifiers, so existing records keep their meaning." } }, "additionalProperties": false }, "appraisal": { "type": "object", "description": "Verifier's EAR appraisal of the evidence (draft-ietf-rats-ar4si).", "required": ["status", "verifier"], "properties": { "status": { "type": "string", "enum": ["affirming", "warning", "contraindicated", "none"], "description": "EAR appraisal status." }, "verifier": { "type": "string", "format": "uri", "description": "URI identifying the verifier the record names for this appraisal. In a record signed only by its producer this is the producer's claim, not authenticated by that verifier." }, "policy_ref": { "type": "string", "format": "uri", "description": "URI to the appraisal policy used." }, "timestamp": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991, "description": "Unix epoch seconds when the appraisal was produced." }, "provenance_depth_verified": { "type": "string", "enum": ["surface", "builder", "transitive"], "description": "Depth at which this verifier actually checked build_provenance, which is not necessarily the depth the issuer claimed. A verifier may downgrade when deeper evidence does not resolve, and records the lower depth rather than a failure of the higher one. A verifier does not record a depth higher than it executed." }, "method": { "type": "string", "enum": ["re-execution"], "description": "The method this appraisal used. A closed set, for the reason section 3.1.1 gives origin.kind: a verifier keys on it. This version defines one value, re-execution, the result of re-running a record's reproducibility claim (section 3.1.4). appraisal.status is untouched by it: the outcome below is not folded into the EAR status." }, "re_execution": { "type": "object", "description": "The re-execution result, attributed to the party that re-ran the function and named as appraisal.verifier. In a record signed only by its producer this attribution is the producer's report, not authenticated by the verifier. Spec section 3.1.4. Present exactly when method is re-execution.", "required": ["outcome"], "properties": { "outcome": { "type": "string", "enum": ["reproduced", "diverged", "not-attempted"], "description": "reproduced: the re-run completed on the closure alone and the digest of its transcript equals transcript_digest. diverged: the re-run completed on the closure alone and the digests differ. not-attempted: a closure blob could not be resolved, code_identity could not be obtained, the function read beyond the closure, the re-run did not run to completion, or the verifier could not establish that the re-run used the closure alone. not-attempted is never reported as either of the other two: absent is not pass, and absent is not failure." }, "observed_digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "The verifier's digest of the transcript its re-run produced. Required when outcome is diverged, because divergence localises nothing by itself: producer tampering, a function that is not the deterministic one it is named as, and verifier drift are indistinguishable until a third party can compare transcripts." }, "reason": { "type": "string", "minLength": 1, "description": "Why no outcome could be reported. Required when outcome is not-attempted: a named absence and a generic one are different findings, and this is where the finding is kept." }, "verifier_code_identity": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "Digest of the verifier's own implementation. Self-asserted and carrying no weight singly; a correlation key across results, since two verifiers at different implementations disagreeing over the same closure is verifier drift, and that reading is unavailable without it." } }, "allOf": [{ "$comment": "Divergence without the observed digest cannot be compared by anyone.", "if": { "required": ["outcome"], "properties": { "outcome": { "const": "diverged" } } }, "then": { "required": ["observed_digest"] } }, { "$comment": "An inability to check is reported with its cause, never rounded to an outcome.", "if": { "required": ["outcome"], "properties": { "outcome": { "const": "not-attempted" } } }, "then": { "required": ["reason"] } }], "additionalProperties": false }, "platform_measurement": { "type": "object", "description": "Per-layer appraisal of the platform measurement, attributed to appraisal.verifier. In a record signed only by its producer this attribution is the producer's report. A member of appraisal in its own right, not an appraisal.method value, so it can sit next to a re-execution result. measurement must equal runtime.measurement, a cross-field rule the reference model enforces. Spec section 3.1.5.", "required": ["measurement", "layers"], "properties": { "measurement": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "The digest this appraisal is about. Must equal runtime.measurement: a result about another measurement is not about this record." }, "layers": { "type": "object", "minProperties": 1, "description": "Keyed by the platform's name for the layer; on tpm2, pcr: followed by a register number from 0 to 23 in decimal without leading zeros. A result naming no layer establishes nothing.", "additionalProperties": { "type": "object", "description": "One layer's outcome. Spec section 3.1.5. reason is required when outcome is not-established and absent when it is established.", "required": ["outcome"], "properties": { "outcome": { "type": "string", "enum": ["established", "not-established"], "description": "established: the evidence establishes this layer. not-established: it does not, for the reason given; never reported as established, and a layer the result does not list is not established either." }, "reason": { "type": "string", "enum": ["layer-not-measured", "measured-not-appraised", "evidence-spans-multiple-boots"], "description": "layer-not-measured: the layer holds no measurement, its value is the initial value or, on a TPM, a separator and nothing else. measured-not-appraised: the measurements replay to the quoted value and nothing in the evidence establishes that what ran was appraised before it ran. evidence-spans-multiple-boots: the evidence does not establish that the quote and the event log describe the same single boot, and the log does not replay to the quoted value." } }, "allOf": [{ "$comment": "A not-established layer carries its reason; an established one carries none.", "if": { "required": ["outcome"], "properties": { "outcome": { "const": "not-established" } } }, "then": { "required": ["reason"] }, "else": { "not": { "required": ["reason"] } } }], "additionalProperties": false } } }, "additionalProperties": false } }, "allOf": [{ "$comment": "Section 3.1.4: re_execution is present when method is re-execution and absent otherwise. Mirrors the cross-field check in the reference model.", "if": { "required": ["method"], "properties": { "method": { "const": "re-execution" } } }, "then": { "required": ["re_execution"] }, "else": { "not": { "required": ["re_execution"] } } }, { "$comment": "Section 3.1.5, rule 5: a verifier that writes platform_measurement has performed an appraisal, so status is not none. Mirrors the check in the reference model.", "if": { "required": ["platform_measurement"] }, "then": { "properties": { "status": { "not": { "const": "none" } } } } }], "additionalProperties": false }, "transparency": { "type": "string", "format": "uri", "description": "SCITT receipt URI. The Trust Record is the Signed Statement; this URI resolves to the inclusion proof (Receipt) on the transparency log." }, "cnf": { "type": "object", "description": "Confirmation key (RFC 8747) that binds the Trust Record to the TEE-held signing key.", "required": ["jwk"], "properties": { "jwk": { "type": "object", "description": "JWK (RFC 7517) representing the TEE-sealed public key. Keys must carry actual key material: OKP keys require crv and x; EC keys require crv, x, and y; RSA keys require n and e.", "required": ["kty"], "properties": { "kty": { "type": "string" }, "crv": { "type": "string" }, "x": { "type": "string" }, "y": { "type": "string" }, "n": { "type": "string" }, "e": { "type": "string" }, "kid": { "type": "string" } }, "allOf": [{ "if": { "required": ["kty"], "properties": { "kty": { "const": "OKP" } } }, "then": { "required": ["crv", "x"] } }, { "if": { "required": ["kty"], "properties": { "kty": { "const": "EC" } } }, "then": { "required": ["crv", "x", "y"] } }, { "if": { "required": ["kty"], "properties": { "kty": { "const": "RSA" } } }, "then": { "required": ["n", "e"] } }], "not": { "anyOf": [{ "required": ["d"] }, { "required": ["p"] }, { "required": ["q"] }, { "required": ["dp"] }, { "required": ["dq"] }, { "required": ["qi"] }, { "required": ["k"] }] }, "$comment": "RFC 8747 defines cnf as a confirmation key: the public half, present so a verifier can bind the record to the key that signed it. A private member here publishes the signing key inside the signed, self-authenticating, typically anchored record, and the only remedy afterwards is to revoke the identity. Mirrors _JWK_PRIVATE_PARAMS in the reference model, which already refuses these. A kty this schema does not name is not held to a key-material rule here: section 3.2.1 states signing algorithms per envelope context and fixes no set for the embedded-signature form of section 3.2.2, so an enum here would add a constraint the specification does not make, and such a key is refused later by the verifier. The n and e declarations are load-bearing rather than decorative: without them a non-string modulus reaches additionalProperties, which admits any canonicalizable value.", "additionalProperties": { "$ref": "#/$defs/canonicalizableValue" } } }, "additionalProperties": false }, "signature": { "type": "string", "description": "OPTIONAL embedded signature: base64url (no padding) signature by the cnf key over the canonical JSON form of the record with only this field absent. Every Trust Record MUST be signature-bound per spec section 3.2.2, but enveloped profiles (e.g. JWS, cMCP RuntimeClaim) carry the signature outside the record, so this field is not required by the schema. An 86-character value is the base64url encoding of a 64-byte signature (Ed25519 or ES256) and MUST be canonically encoded per RFC 4648 section 3.5: its final character's unused bits MUST be zero, so it MUST end in A, Q, g, or w.", "pattern": "^(?:[A-Za-z0-9_-]{1,85}|[A-Za-z0-9_-]{85}[AQgw]|[A-Za-z0-9_-]{87,})$" } }, "additionalProperties": false, "allOf": [{ "$comment": "A record assembled from another party's evidence has no hardware root. Mirrors the cross-field check in the reference model, so a validator that only reads this schema enforces it too.", "if": { "required": ["origin"], "properties": { "origin": { "required": ["kind"], "properties": { "kind": { "enum": ["third-party-control-plane", "log-import"] } } } } }, "then": { "properties": { "runtime": { "properties": { "platform": { "const": "software-only" } } } } } }, { "$comment": "Section 3.1.5: on a TPM a layer is named pcr: and a register number from 0 to 23, in decimal without leading zeros. Mirrors the layer-name check in the reference model.", "if": { "required": ["runtime", "appraisal"], "properties": { "runtime": { "required": ["platform"], "properties": { "platform": { "const": "tpm2" } } }, "appraisal": { "required": ["platform_measurement"] } } }, "then": { "properties": { "appraisal": { "properties": { "platform_measurement": { "properties": { "layers": { "propertyNames": { "pattern": "^pcr:([0-9]|1[0-9]|2[0-3])$" } } } } } } } } }] };
+const schema31 = { "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://agentrust-io.com/schema/trace-v0.2.json", "$defs": { "canonicalizableValue": { "description": "Any JSON value section 3.2.2 can canonicalize without ambiguity. RFC 7517 lets a JWK carry members this schema does not name, those members are covered by the signature, and they therefore need the constraint the named fields carry: `number` is excluded, and an integer is held to the safe-integer domain. Recursive, because such a member may itself be an array or an object.", "anyOf": [{ "type": ["string", "boolean", "null"] }, { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }, { "type": "array", "items": { "$ref": "#/$defs/canonicalizableValue" } }, { "type": "object", "additionalProperties": { "$ref": "#/$defs/canonicalizableValue" } }] } }, "title": "TRACE Trust Record", "description": "A TRACE v0.2 Trust Record: a signed governance record for an AI agent execution, which can carry hardware attestation evidence.", "type": "object", "required": ["eat_profile", "iat", "subject", "model", "runtime", "policy", "data_class", "build_provenance", "appraisal", "cnf"], "properties": { "eat_profile": { "type": "string", "const": "tag:agentrust-io.com,2026:trace-v0.2", "description": "EAT profile URI identifying this as a TRACE v0.2 Trust Record." }, "iat": { "type": "integer", "description": "Issued-at time as Unix epoch seconds.", "minimum": 1700000000, "maximum": 9007199254740991 }, "subject": { "type": "string", "description": "Workload identity as a SPIFFE SVID URI or DID URI. A SPIFFE ID carries a trust domain and a workload path within it; a DID carries a lowercase method name, per DID Core section 3.1, and a method-specific identifier. A prefix alone is not an identity: spiffe://example.org names a trust domain and no workload.", "pattern": "^(spiffe://[^/]+/.+|did:[a-z0-9]+:.+)$" }, "model": { "type": "object", "description": "Model identity and provenance.", "required": ["provider", "model_id"], "properties": { "provider": { "type": "string", "description": "Model provider (e.g. 'example-provider')." }, "model_id": { "type": "string", "description": "Model identifier as used by the provider." }, "version": { "type": "string", "description": "Model version or snapshot identifier." }, "weights_digest": { "type": "string", "description": "SHA-256 or SHA-384 digest of the model weights. Required for local/confidential-inference deployments.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "aibom_uri": { "type": "string", "format": "uri", "description": "URI to SPDX 3.0 AI Profile or CycloneDX 1.7 ML-BOM for this model." } }, "additionalProperties": false }, "runtime": { "type": "object", "description": "TEE measurement chain binding the workload to hardware.", "required": ["platform", "measurement"], "properties": { "platform": { "type": "string", "enum": ["intel-tdx", "amd-sev-snp", "azure-cvm-sev-snp", "nvidia-h100", "nvidia-blackwell", "aws-nitro", "arm-cca", "google-confidential-space", "tpm2", "software-only"], "description": "Hardware platform providing the root of trust. software-only marks records with no hardware root of trust, for example a development-mode execution, or a record assembled from evidence produced outside the runtime (origin.kind other than self requires this value; see spec 3.1.1). Such records must never be treated as attested evidence." }, "measurement": { "type": "string", "description": "Hardware measurement of the workload (e.g. TDX MRTD, SEV measurement, TPM PCR composite).", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "rim_uri": { "type": "string", "format": "uri", "description": "URI to the vendor-published Reference Integrity Manifest for this measurement." }, "nonce": { "type": "string", "description": "Freshness nonce binding the attestation report to this record (base64url, no padding)." }, "firmware_version": { "type": "string", "description": "Firmware or microcode version included in the measurement." } }, "additionalProperties": false }, "policy": { "type": "object", "description": "Policy bundle sealed to the TEE measurement.", "required": ["bundle_hash", "enforcement_mode"], "properties": { "bundle_hash": { "type": "string", "description": "SHA-256 or SHA-384 digest of the policy bundle in force at execution time.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "enforcement_mode": { "type": "string", "enum": ["enforce", "advisory", "silent", "declared"], "default": "enforce", "description": "How the policy named by bundle_hash related to this execution. enforce: evaluated and blocked on deny. advisory: evaluated, logged, allowed. silent: evaluated and allowed, including on deny, with operational logs suppressed; the audit chain still records every would-have-denied decision. declared: the policy is named and bound into the signed record and NOTHING evaluated it, which is the honest value for a producer with no policy engine, such as an agent framework. Gateways MUST default to enforce. A deployment MUST explicitly configure silent. declared is never a default, a producer that evaluates policy MUST NOT use it, and a consumer MUST NOT read it as evidence that any rule was checked." }, "version": { "type": "string", "description": "Policy bundle version (semantic versioning recommended)." }, "policy_uri": { "type": "string", "format": "uri", "description": "URI to the policy bundle for verification." } }, "additionalProperties": false }, "data_class": { "type": "string", "description": "Highest-sensitivity data classification of inputs and outputs processed during this execution.", "examples": ["public", "internal", "confidential", "restricted", "top-secret"] }, "tool_transcript": { "type": "object", "description": "Bound hash of the MCP/A2A tool-call transcript. OPTIONAL for Phase 1 records; REQUIRED for Phase 2+.", "required": ["hash"], "properties": { "hash": { "type": "string", "description": "SHA-256 or SHA-384 digest of the full tool-call transcript, bound into the EAT envelope.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "call_count": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "description": "Total number of tool calls in this transcript." }, "transcript_uri": { "type": "string", "format": "uri", "description": "URI to the full transcript on the transparency log." } }, "additionalProperties": false }, "delegation": { "type": "object", "description": "A2A profile: links this record to the delegating hop's Trust Record. Present when this execution acted on delegated authority; absent on a root (non-delegated) execution. A chain of these forms an offline-verifiable delegation DAG.", "required": ["parent_record_hash", "credential_id"], "properties": { "parent_record_hash": { "type": "string", "description": "SHA-256 or SHA-384 digest of the parent hop's Trust Record.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "credential_id": { "type": "string", "minLength": 1, "description": "Identifier of the delegation credential this hop acted under." } }, "additionalProperties": false }, "origin": { "type": "object", "description": "Where the evidence in this record came from, when that is not this runtime. Absent means the runtime produced its own record, which is what a consumer assumes and what every hardware profile is. Present means something else assembled the record from evidence it did not measure. A non-self kind cannot carry a hardware runtime.platform.", "required": ["kind", "producer"], "properties": { "kind": { "type": "string", "enum": ["self", "third-party-control-plane", "log-import"], "description": "self: the runtime produced its own record. third-party-control-plane: assembled from another vendor's runtime governance output, asserted by the system that produced it with no root outside that system. log-import: assembled from a log or export whose producer is not a control plane." }, "producer": { "type": "string", "minLength": 1, "description": "Identifier of the system that produced the source evidence." }, "source_event_id": { "type": "string", "minLength": 1, "description": "Identifier of the source event in the producing system, so a record can be traced back to it." }, "ingested_at": { "type": "integer", "minimum": 1700000000, "maximum": 9007199254740991, "description": "Unix time at which the source evidence was ingested. Distinct from iat, which is when this record was issued." } }, "additionalProperties": false }, "references": { "type": "array", "description": "Facts outside this record that it points at. Spec section 3.1.2. An entry is a pointer, not evidence: the signature attests that this record points there, not the truth of what it points at. The block is assurance-neutral and does not affect runtime.platform. Two further rules in 3.1.2 bind verifiers rather than records, so this schema cannot express them: a verifier MUST NOT reject a record because an entry cannot be resolved, and MUST NOT treat a resolved entry as attested evidence.", "items": { "type": "object", "required": ["rel", "id", "resolver"], "properties": { "rel": { "type": "string", "minLength": 1, "description": "Relationship type. The registered values are a registry that grows, so this is not a closed set. authorized-intent: an authorization decided before execution, held in another system. approval-outcome: an attributable human approval attached to a step-up or defer decision. behavior-trace: a behavioural record of what the agent did, of which this record is the environment evidence. condition-appraisal: an independent check's finding on whether a stated condition is established by a stated subject, bound to both by digest. observed-effect: a signed record of the state change an observer outside the agent saw over one interval, with the state before and after, the paths observed and the authority change ran under. applicability-assessment: an assessor's statement of whether a stated legal provision applies to a stated party, held in another system." }, "id": { "type": "string", "minLength": 1, "description": "Identifier of the referenced fact within the resolver's system." }, "resolver": { "type": "string", "minLength": 1, "description": "Identifier of the party obliged to resolve id. A producer that cannot name one omits the entry. Which identifiers are self-asserted is not decidable from the record, so this constrains the field's presence and not its value." }, "retention": { "type": "string", "pattern": "^P(\\d+W|(\\d+Y(\\d+M)?(\\d+D)?|\\d+M(\\d+D)?|\\d+D)(T(\\d+H(\\d+M)?(\\d+S)?|\\d+M(\\d+S)?|\\d+S))?|T(\\d+H(\\d+M)?(\\d+S)?|\\d+M(\\d+S)?|\\d+S))$", "description": "Period for which resolver undertakes to keep id resolvable, as an ISO 8601 duration. An undertaking only: nothing in this specification enforces it." }, "digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest of the referenced object, when the producer holds it at issue time." } }, "additionalProperties": false } }, "reproducibility": { "type": "object", "description": "The claim that re-executing a named deterministic function of the run, the producer's coordination logic, over a pinned input closure yields a transcript whose RFC 8785 canonical digest equals transcript_digest. Spec section 3.1.4. Producer-side: the claim, not its result, which is an appraisal under appraisal.method. The block does not affect runtime.platform, and the record signature covers it. A closure that omits anything which can change the transcript makes the claim malformed rather than weak; that is detected at re-execution, not by this schema.", "required": ["function", "code_identity", "input_closure", "transcript_digest"], "properties": { "function": { "type": "string", "minLength": 1, "description": "Name under which the implementation at code_identity exposes the deterministic function re-executed. The convention for invoking it is part of the artifact at code_identity, and so content-addressed with it." }, "code_identity": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest of the implementation artifact that contains function. It resolves to an artifact a verifier can obtain without the producer. For a producer whose coordination logic ships in the artifact build_provenance names, this is the same value as build_provenance.digest." }, "code_resolver": { "type": "string", "minLength": 1, "description": "Where the artifact at code_identity is obtained: the party obliged to retain it, in the sense section 3.1.2 gives resolver. Omitted when the digest alone locates the artifact, as on a package index; present otherwise, since a verifier that cannot obtain the artifact reports not-attempted." }, "input_closure": { "type": "array", "description": "The complete content-addressed set of everything function reads: the initial configuration and every recorded external interaction, model calls included. An entry the function does not read is surplus and has no effect on the outcome.", "items": { "type": "object", "description": "One content-addressed input of function. The shape section 3.1.2 gives a reference, without rel or retention, since every entry stands in the same relation to the claim, and with digest required on every entry.", "required": ["id", "digest", "resolver"], "properties": { "id": { "type": "string", "minLength": 1, "description": "Identifier of the input within the resolver's system." }, "digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest of the input. A verifier holds the input only once what it obtained matches this value, which the producer signed." }, "resolver": { "type": "string", "minLength": 1, "description": "Identifier of the party obliged to resolve id, in the sense section 3.1.2 gives resolver. A run's closure is run-private by construction, so the producer is an ordinary resolver here; the bar is integrity, not provenance." } }, "additionalProperties": false } }, "transcript_digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "SHA-256 or SHA-384 digest, in the algorithm its prefix names, over the RFC 8785 canonical bytes of the transcript function produces when re-executed over input_closure. The transcript is the function's complete output as a JSON value; its shape belongs to the profile or annex that describes the function." } }, "additionalProperties": false }, "build_provenance": { "type": "object", "description": "SLSA provenance for the workload (agent code + container image).", "required": ["slsa_level", "digest"], "properties": { "slsa_level": { "type": "integer", "minimum": 0, "maximum": 3, "description": "SLSA Build Level achieved. Level 0 = software-only (development/staging); Level 2 minimum for TRACE conformance; Level 3 for production mark." }, "builder": { "type": "string", "description": "SLSA builder URI." }, "digest": { "type": "string", "description": "SHA-256 or SHA-384 digest of the container image or workload binary.", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$" }, "provenance_uri": { "type": "string", "format": "uri", "description": "URI to the SLSA provenance attestation on a Sigstore/Rekor or compatible log." }, "provenance_depth": { "type": "string", "enum": ["surface", "builder", "transitive"], "description": "Depth of supply-chain verification the issuer claims for this record. surface: digest matches the workload artifact and builder is in a trusted set. builder: all of surface, plus provenance_uri resolves, the SLSA attestation signature verifies, its subject matches digest, and its builder.id matches builder. transitive: all of builder, plus every entry in the SLSA materials / resolvedDependencies has a verifiable publisher attestation. Records omitting this field are treated as surface by verifiers, so existing records keep their meaning." } }, "additionalProperties": false }, "appraisal": { "type": "object", "description": "Verifier's EAR appraisal of the evidence (draft-ietf-rats-ar4si).", "required": ["status", "verifier"], "properties": { "status": { "type": "string", "enum": ["affirming", "warning", "contraindicated", "none"], "description": "EAR appraisal status." }, "verifier": { "type": "string", "format": "uri", "description": "URI identifying the verifier the record names for this appraisal. In a record signed only by its producer this is the producer's claim, not authenticated by that verifier." }, "policy_ref": { "type": "string", "format": "uri", "description": "URI to the appraisal policy used." }, "timestamp": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991, "description": "Unix epoch seconds when the appraisal was produced." }, "provenance_depth_verified": { "type": "string", "enum": ["surface", "builder", "transitive"], "description": "Depth at which this verifier actually checked build_provenance, which is not necessarily the depth the issuer claimed. A verifier may downgrade when deeper evidence does not resolve, and records the lower depth rather than a failure of the higher one. A verifier does not record a depth higher than it executed." }, "method": { "type": "string", "enum": ["re-execution"], "description": "The method this appraisal used. A closed set, for the reason section 3.1.1 gives origin.kind: a verifier keys on it. This version defines one value, re-execution, the result of re-running a record's reproducibility claim (section 3.1.4). appraisal.status is untouched by it: the outcome below is not folded into the EAR status." }, "re_execution": { "type": "object", "description": "The re-execution result, attributed to the party that re-ran the function and named as appraisal.verifier. In a record signed only by its producer this attribution is the producer's report, not authenticated by the verifier. Spec section 3.1.4. Present exactly when method is re-execution.", "required": ["outcome"], "properties": { "outcome": { "type": "string", "enum": ["reproduced", "diverged", "not-attempted"], "description": "reproduced: the re-run completed on the closure alone and the digest of its transcript equals transcript_digest. diverged: the re-run completed on the closure alone and the digests differ. not-attempted: a closure blob could not be resolved, code_identity could not be obtained, the function read beyond the closure, the re-run did not run to completion, or the verifier could not establish that the re-run used the closure alone. not-attempted is never reported as either of the other two: absent is not pass, and absent is not failure." }, "observed_digest": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "The verifier's digest of the transcript its re-run produced. Required when outcome is diverged, because divergence localises nothing by itself: producer tampering, a function that is not the deterministic one it is named as, and verifier drift are indistinguishable until a third party can compare transcripts." }, "reason": { "type": "string", "minLength": 1, "description": "Why no outcome could be reported. Required when outcome is not-attempted: a named absence and a generic one are different findings, and this is where the finding is kept." }, "verifier_code_identity": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "Digest of the verifier's own implementation. Self-asserted and carrying no weight singly; a correlation key across results, since two verifiers at different implementations disagreeing over the same closure is verifier drift, and that reading is unavailable without it." } }, "allOf": [{ "$comment": "Divergence without the observed digest cannot be compared by anyone.", "if": { "required": ["outcome"], "properties": { "outcome": { "const": "diverged" } } }, "then": { "required": ["observed_digest"] } }, { "$comment": "An inability to check is reported with its cause, never rounded to an outcome.", "if": { "required": ["outcome"], "properties": { "outcome": { "const": "not-attempted" } } }, "then": { "required": ["reason"] } }], "additionalProperties": false }, "platform_measurement": { "type": "object", "description": "Per-layer appraisal of the platform measurement, attributed to appraisal.verifier. In a record signed only by its producer this attribution is the producer's report. A member of appraisal in its own right, not an appraisal.method value, so it can sit next to a re-execution result. measurement must equal runtime.measurement, a cross-field rule the reference model enforces. Spec section 3.1.5.", "required": ["measurement", "layers"], "properties": { "measurement": { "type": "string", "pattern": "^sha(256:[0-9a-f]{64}|384:[0-9a-f]{96})$", "description": "The digest this appraisal is about. Must equal runtime.measurement: a result about another measurement is not about this record." }, "layers": { "type": "object", "minProperties": 1, "description": "Keyed by the platform's name for the layer; on tpm2, pcr: followed by a register number from 0 to 23 in decimal without leading zeros. A result naming no layer establishes nothing.", "additionalProperties": { "type": "object", "description": "One layer's outcome. Spec section 3.1.5. reason is required when outcome is not-established and absent when it is established.", "required": ["outcome"], "properties": { "outcome": { "type": "string", "enum": ["established", "not-established"], "description": "established: the evidence establishes this layer. not-established: it does not, for the reason given; never reported as established, and a layer the result does not list is not established either." }, "reason": { "type": "string", "enum": ["layer-not-measured", "measured-not-appraised", "evidence-spans-multiple-boots"], "description": "layer-not-measured: the layer holds no measurement, its value is the initial value or, on a TPM, a separator and nothing else. measured-not-appraised: the measurements replay to the quoted value and nothing in the evidence establishes that what ran was appraised before it ran. evidence-spans-multiple-boots: the evidence does not establish that the quote and the event log describe the same single boot, and the log does not replay to the quoted value." } }, "allOf": [{ "$comment": "A not-established layer carries its reason; an established one carries none.", "if": { "required": ["outcome"], "properties": { "outcome": { "const": "not-established" } } }, "then": { "required": ["reason"] }, "else": { "not": { "required": ["reason"] } } }], "additionalProperties": false } } }, "additionalProperties": false } }, "allOf": [{ "$comment": "Section 3.1.4: re_execution is present when method is re-execution and absent otherwise. Mirrors the cross-field check in the reference model.", "if": { "required": ["method"], "properties": { "method": { "const": "re-execution" } } }, "then": { "required": ["re_execution"] }, "else": { "not": { "required": ["re_execution"] } } }, { "$comment": "Section 3.1.5, rule 5: a verifier that writes platform_measurement has performed an appraisal, so status is not none. Mirrors the check in the reference model.", "if": { "required": ["platform_measurement"] }, "then": { "properties": { "status": { "not": { "const": "none" } } } } }], "additionalProperties": false }, "transparency": { "type": "string", "format": "uri", "description": "SCITT receipt URI. The Trust Record is the Signed Statement; this URI resolves to the inclusion proof (Receipt) on the transparency log." }, "cnf": { "type": "object", "description": "Confirmation key (RFC 8747) that binds the Trust Record to the TEE-held signing key.", "required": ["jwk"], "properties": { "jwk": { "type": "object", "description": "JWK (RFC 7517) representing the TEE-sealed public key. Keys must carry actual key material: OKP keys require crv and x; EC keys require crv, x, and y; RSA keys require n and e.", "required": ["kty"], "properties": { "kty": { "type": "string" }, "crv": { "type": "string" }, "x": { "type": "string" }, "y": { "type": "string" }, "n": { "type": "string" }, "e": { "type": "string" }, "kid": { "type": "string" } }, "allOf": [{ "if": { "required": ["kty"], "properties": { "kty": { "const": "OKP" } } }, "then": { "required": ["crv", "x"] } }, { "if": { "required": ["kty"], "properties": { "kty": { "const": "EC" } } }, "then": { "required": ["crv", "x", "y"] } }, { "if": { "required": ["kty"], "properties": { "kty": { "const": "RSA" } } }, "then": { "required": ["n", "e"] } }], "not": { "anyOf": [{ "required": ["d"] }, { "required": ["p"] }, { "required": ["q"] }, { "required": ["dp"] }, { "required": ["dq"] }, { "required": ["qi"] }, { "required": ["oth"] }, { "required": ["k"] }] }, "$comment": "RFC 8747 defines cnf as a confirmation key: the public half, present so a verifier can bind the record to the key that signed it. A private member here publishes the signing key inside the signed, self-authenticating, typically anchored record, and the only remedy afterwards is to revoke the identity. Mirrors _JWK_PRIVATE_PARAMS in the reference model, which already refuses these. A kty this schema does not name is not held to a key-material rule here: section 3.2.1 states signing algorithms per envelope context and fixes no set for the embedded-signature form of section 3.2.2, so an enum here would add a constraint the specification does not make, and such a key is refused later by the verifier. The n and e declarations are load-bearing rather than decorative: without them a non-string modulus reaches additionalProperties, which admits any canonicalizable value.", "additionalProperties": { "$ref": "#/$defs/canonicalizableValue" } } }, "additionalProperties": false }, "signature": { "type": "string", "description": "OPTIONAL embedded signature: base64url (no padding) signature by the cnf key over the canonical JSON form of the record with only this field absent. Every Trust Record MUST be signature-bound per spec section 3.2.2, but enveloped profiles (e.g. JWS, cMCP RuntimeClaim) carry the signature outside the record, so this field is not required by the schema. An 86-character value is the base64url encoding of a 64-byte signature (Ed25519 or ES256) and MUST be canonically encoded per RFC 4648 section 3.5: its final character's unused bits MUST be zero, so it MUST end in A, Q, g, or w.", "pattern": "^(?:[A-Za-z0-9_-]{1,85}|[A-Za-z0-9_-]{85}[AQgw]|[A-Za-z0-9_-]{87,})$" } }, "additionalProperties": false, "allOf": [{ "$comment": "A record assembled from another party's evidence has no hardware root. Mirrors the cross-field check in the reference model, so a validator that only reads this schema enforces it too.", "if": { "required": ["origin"], "properties": { "origin": { "required": ["kind"], "properties": { "kind": { "enum": ["third-party-control-plane", "log-import"] } } } } }, "then": { "properties": { "runtime": { "properties": { "platform": { "const": "software-only" } } } } } }, { "$comment": "Section 3.1.5: on a TPM a layer is named pcr: and a register number from 0 to 23, in decimal without leading zeros. Mirrors the layer-name check in the reference model.", "if": { "required": ["runtime", "appraisal"], "properties": { "runtime": { "required": ["platform"], "properties": { "platform": { "const": "tpm2" } } }, "appraisal": { "required": ["platform_measurement"] } } }, "then": { "properties": { "appraisal": { "properties": { "platform_measurement": { "properties": { "layers": { "propertyNames": { "pattern": "^pcr:([0-9]|1[0-9]|2[0-3])$" } } } } } } } } }] };
 const func0 = Object.prototype.hasOwnProperty;
 const func124 = __codePointLength;
 const pattern4 = new RegExp("^pcr:([0-9]|1[0-9]|2[0-3])$", "u");
@@ -3147,7 +3147,7 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                 const _errs241 = errors;
                 if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
                     let missing18;
-                    if (((data91.k === undefined) || (!(func0.call(data91, "k")))) && (missing18 = "k")) {
+                    if (((data91.oth === undefined) || (!(func0.call(data91, "oth")))) && (missing18 = "oth")) {
                         const err229 = {};
                         if (vErrors === null) {
                             vErrors = [err229];
@@ -3160,13 +3160,29 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                 }
                 var _valid7 = _errs241 === errors;
                 valid51 = valid51 || _valid7;
+                const _errs242 = errors;
+                if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
+                    let missing19;
+                    if (((data91.k === undefined) || (!(func0.call(data91, "k")))) && (missing19 = "k")) {
+                        const err230 = {};
+                        if (vErrors === null) {
+                            vErrors = [err230];
+                        }
+                        else {
+                            vErrors.push(err230);
+                        }
+                        errors++;
+                    }
+                }
+                var _valid7 = _errs242 === errors;
+                valid51 = valid51 || _valid7;
                 if (!valid51) {
-                    const err230 = {};
+                    const err231 = {};
                     if (vErrors === null) {
-                        vErrors = [err230];
+                        vErrors = [err231];
                     }
                     else {
-                        vErrors.push(err230);
+                        vErrors.push(err231);
                     }
                     errors++;
                 }
@@ -3183,12 +3199,12 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                 }
                 var valid50 = _errs233 === errors;
                 if (valid50) {
-                    const err231 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/not", keyword: "not", params: {}, message: "must NOT be valid" };
+                    const err232 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/not", keyword: "not", params: {}, message: "must NOT be valid" };
                     if (vErrors === null) {
-                        vErrors = [err231];
+                        vErrors = [err232];
                     }
                     else {
-                        vErrors.push(err231);
+                        vErrors.push(err232);
                     }
                     errors++;
                 }
@@ -3203,61 +3219,51 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                         }
                     }
                 }
-                const _errs243 = errors;
-                let valid53 = true;
                 const _errs244 = errors;
+                let valid53 = true;
+                const _errs245 = errors;
                 if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
-                    let missing19;
-                    if (((data91.kty === undefined) || (!(func0.call(data91, "kty")))) && (missing19 = "kty")) {
-                        const err232 = {};
+                    let missing20;
+                    if (((data91.kty === undefined) || (!(func0.call(data91, "kty")))) && (missing20 = "kty")) {
+                        const err233 = {};
                         if (vErrors === null) {
-                            vErrors = [err232];
+                            vErrors = [err233];
                         }
                         else {
-                            vErrors.push(err232);
+                            vErrors.push(err233);
                         }
                         errors++;
                     }
                     else {
                         if (data91.kty !== undefined && func0.call(data91, "kty")) {
                             if ("OKP" !== data91.kty) {
-                                const err233 = {};
+                                const err234 = {};
                                 if (vErrors === null) {
-                                    vErrors = [err233];
+                                    vErrors = [err234];
                                 }
                                 else {
-                                    vErrors.push(err233);
+                                    vErrors.push(err234);
                                 }
                                 errors++;
                             }
                         }
                     }
                 }
-                var _valid8 = _errs244 === errors;
-                errors = _errs243;
+                var _valid8 = _errs245 === errors;
+                errors = _errs244;
                 if (vErrors !== null) {
-                    if (_errs243) {
-                        vErrors.length = _errs243;
+                    if (_errs244) {
+                        vErrors.length = _errs244;
                     }
                     else {
                         vErrors = null;
                     }
                 }
                 if (_valid8) {
-                    const _errs246 = errors;
+                    const _errs247 = errors;
                     if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
                         if ((data91.crv === undefined) || (!(func0.call(data91, "crv")))) {
-                            const err234 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/0/then/required", keyword: "required", params: { missingProperty: "crv" }, message: "must have required property '" + "crv" + "'" };
-                            if (vErrors === null) {
-                                vErrors = [err234];
-                            }
-                            else {
-                                vErrors.push(err234);
-                            }
-                            errors++;
-                        }
-                        if ((data91.x === undefined) || (!(func0.call(data91, "x")))) {
-                            const err235 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/0/then/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property '" + "x" + "'" };
+                            const err235 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/0/then/required", keyword: "required", params: { missingProperty: "crv" }, message: "must have required property '" + "crv" + "'" };
                             if (vErrors === null) {
                                 vErrors = [err235];
                             }
@@ -3266,75 +3272,75 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             }
                             errors++;
                         }
+                        if ((data91.x === undefined) || (!(func0.call(data91, "x")))) {
+                            const err236 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/0/then/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property '" + "x" + "'" };
+                            if (vErrors === null) {
+                                vErrors = [err236];
+                            }
+                            else {
+                                vErrors.push(err236);
+                            }
+                            errors++;
+                        }
                     }
-                    var _valid8 = _errs246 === errors;
+                    var _valid8 = _errs247 === errors;
                     valid53 = _valid8;
                 }
                 if (!valid53) {
-                    const err236 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/0/if", keyword: "if", params: { failingKeyword: "then" }, message: "must match \"then\" schema" };
+                    const err237 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/0/if", keyword: "if", params: { failingKeyword: "then" }, message: "must match \"then\" schema" };
                     if (vErrors === null) {
-                        vErrors = [err236];
+                        vErrors = [err237];
                     }
                     else {
-                        vErrors.push(err236);
+                        vErrors.push(err237);
                     }
                     errors++;
                 }
-                const _errs248 = errors;
-                let valid55 = true;
                 const _errs249 = errors;
+                let valid55 = true;
+                const _errs250 = errors;
                 if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
-                    let missing20;
-                    if (((data91.kty === undefined) || (!(func0.call(data91, "kty")))) && (missing20 = "kty")) {
-                        const err237 = {};
+                    let missing21;
+                    if (((data91.kty === undefined) || (!(func0.call(data91, "kty")))) && (missing21 = "kty")) {
+                        const err238 = {};
                         if (vErrors === null) {
-                            vErrors = [err237];
+                            vErrors = [err238];
                         }
                         else {
-                            vErrors.push(err237);
+                            vErrors.push(err238);
                         }
                         errors++;
                     }
                     else {
                         if (data91.kty !== undefined && func0.call(data91, "kty")) {
                             if ("EC" !== data91.kty) {
-                                const err238 = {};
+                                const err239 = {};
                                 if (vErrors === null) {
-                                    vErrors = [err238];
+                                    vErrors = [err239];
                                 }
                                 else {
-                                    vErrors.push(err238);
+                                    vErrors.push(err239);
                                 }
                                 errors++;
                             }
                         }
                     }
                 }
-                var _valid9 = _errs249 === errors;
-                errors = _errs248;
+                var _valid9 = _errs250 === errors;
+                errors = _errs249;
                 if (vErrors !== null) {
-                    if (_errs248) {
-                        vErrors.length = _errs248;
+                    if (_errs249) {
+                        vErrors.length = _errs249;
                     }
                     else {
                         vErrors = null;
                     }
                 }
                 if (_valid9) {
-                    const _errs251 = errors;
+                    const _errs252 = errors;
                     if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
                         if ((data91.crv === undefined) || (!(func0.call(data91, "crv")))) {
-                            const err239 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/then/required", keyword: "required", params: { missingProperty: "crv" }, message: "must have required property '" + "crv" + "'" };
-                            if (vErrors === null) {
-                                vErrors = [err239];
-                            }
-                            else {
-                                vErrors.push(err239);
-                            }
-                            errors++;
-                        }
-                        if ((data91.x === undefined) || (!(func0.call(data91, "x")))) {
-                            const err240 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/then/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property '" + "x" + "'" };
+                            const err240 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/then/required", keyword: "required", params: { missingProperty: "crv" }, message: "must have required property '" + "crv" + "'" };
                             if (vErrors === null) {
                                 vErrors = [err240];
                             }
@@ -3343,8 +3349,8 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             }
                             errors++;
                         }
-                        if ((data91.y === undefined) || (!(func0.call(data91, "y")))) {
-                            const err241 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/then/required", keyword: "required", params: { missingProperty: "y" }, message: "must have required property '" + "y" + "'" };
+                        if ((data91.x === undefined) || (!(func0.call(data91, "x")))) {
+                            const err241 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/then/required", keyword: "required", params: { missingProperty: "x" }, message: "must have required property '" + "x" + "'" };
                             if (vErrors === null) {
                                 vErrors = [err241];
                             }
@@ -3353,75 +3359,75 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             }
                             errors++;
                         }
+                        if ((data91.y === undefined) || (!(func0.call(data91, "y")))) {
+                            const err242 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/then/required", keyword: "required", params: { missingProperty: "y" }, message: "must have required property '" + "y" + "'" };
+                            if (vErrors === null) {
+                                vErrors = [err242];
+                            }
+                            else {
+                                vErrors.push(err242);
+                            }
+                            errors++;
+                        }
                     }
-                    var _valid9 = _errs251 === errors;
+                    var _valid9 = _errs252 === errors;
                     valid55 = _valid9;
                 }
                 if (!valid55) {
-                    const err242 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/if", keyword: "if", params: { failingKeyword: "then" }, message: "must match \"then\" schema" };
+                    const err243 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/1/if", keyword: "if", params: { failingKeyword: "then" }, message: "must match \"then\" schema" };
                     if (vErrors === null) {
-                        vErrors = [err242];
+                        vErrors = [err243];
                     }
                     else {
-                        vErrors.push(err242);
+                        vErrors.push(err243);
                     }
                     errors++;
                 }
-                const _errs253 = errors;
-                let valid57 = true;
                 const _errs254 = errors;
+                let valid57 = true;
+                const _errs255 = errors;
                 if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
-                    let missing21;
-                    if (((data91.kty === undefined) || (!(func0.call(data91, "kty")))) && (missing21 = "kty")) {
-                        const err243 = {};
+                    let missing22;
+                    if (((data91.kty === undefined) || (!(func0.call(data91, "kty")))) && (missing22 = "kty")) {
+                        const err244 = {};
                         if (vErrors === null) {
-                            vErrors = [err243];
+                            vErrors = [err244];
                         }
                         else {
-                            vErrors.push(err243);
+                            vErrors.push(err244);
                         }
                         errors++;
                     }
                     else {
                         if (data91.kty !== undefined && func0.call(data91, "kty")) {
                             if ("RSA" !== data91.kty) {
-                                const err244 = {};
+                                const err245 = {};
                                 if (vErrors === null) {
-                                    vErrors = [err244];
+                                    vErrors = [err245];
                                 }
                                 else {
-                                    vErrors.push(err244);
+                                    vErrors.push(err245);
                                 }
                                 errors++;
                             }
                         }
                     }
                 }
-                var _valid10 = _errs254 === errors;
-                errors = _errs253;
+                var _valid10 = _errs255 === errors;
+                errors = _errs254;
                 if (vErrors !== null) {
-                    if (_errs253) {
-                        vErrors.length = _errs253;
+                    if (_errs254) {
+                        vErrors.length = _errs254;
                     }
                     else {
                         vErrors = null;
                     }
                 }
                 if (_valid10) {
-                    const _errs256 = errors;
+                    const _errs257 = errors;
                     if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
                         if ((data91.n === undefined) || (!(func0.call(data91, "n")))) {
-                            const err245 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/2/then/required", keyword: "required", params: { missingProperty: "n" }, message: "must have required property '" + "n" + "'" };
-                            if (vErrors === null) {
-                                vErrors = [err245];
-                            }
-                            else {
-                                vErrors.push(err245);
-                            }
-                            errors++;
-                        }
-                        if ((data91.e === undefined) || (!(func0.call(data91, "e")))) {
-                            const err246 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/2/then/required", keyword: "required", params: { missingProperty: "e" }, message: "must have required property '" + "e" + "'" };
+                            const err246 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/2/then/required", keyword: "required", params: { missingProperty: "n" }, message: "must have required property '" + "n" + "'" };
                             if (vErrors === null) {
                                 vErrors = [err246];
                             }
@@ -3430,28 +3436,38 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             }
                             errors++;
                         }
+                        if ((data91.e === undefined) || (!(func0.call(data91, "e")))) {
+                            const err247 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/2/then/required", keyword: "required", params: { missingProperty: "e" }, message: "must have required property '" + "e" + "'" };
+                            if (vErrors === null) {
+                                vErrors = [err247];
+                            }
+                            else {
+                                vErrors.push(err247);
+                            }
+                            errors++;
+                        }
                     }
-                    var _valid10 = _errs256 === errors;
+                    var _valid10 = _errs257 === errors;
                     valid57 = _valid10;
                 }
                 if (!valid57) {
-                    const err247 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/2/if", keyword: "if", params: { failingKeyword: "then" }, message: "must match \"then\" schema" };
+                    const err248 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/allOf/2/if", keyword: "if", params: { failingKeyword: "then" }, message: "must match \"then\" schema" };
                     if (vErrors === null) {
-                        vErrors = [err247];
+                        vErrors = [err248];
                     }
                     else {
-                        vErrors.push(err247);
+                        vErrors.push(err248);
                     }
                     errors++;
                 }
                 if (data91 && typeof data91 == "object" && !Array.isArray(data91)) {
                     if ((data91.kty === undefined) || (!(func0.call(data91, "kty")))) {
-                        const err248 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/required", keyword: "required", params: { missingProperty: "kty" }, message: "must have required property '" + "kty" + "'" };
+                        const err249 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/required", keyword: "required", params: { missingProperty: "kty" }, message: "must have required property '" + "kty" + "'" };
                         if (vErrors === null) {
-                            vErrors = [err248];
+                            vErrors = [err249];
                         }
                         else {
-                            vErrors.push(err248);
+                            vErrors.push(err249);
                         }
                         errors++;
                     }
@@ -3465,19 +3481,7 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                     }
                     if (data91.kty !== undefined && func0.call(data91, "kty")) {
                         if (typeof data91.kty !== "string") {
-                            const err249 = { instancePath: instancePath + "/cnf/jwk/kty", schemaPath: "#/properties/cnf/properties/jwk/properties/kty/type", keyword: "type", params: { type: "string" }, message: "must be string" };
-                            if (vErrors === null) {
-                                vErrors = [err249];
-                            }
-                            else {
-                                vErrors.push(err249);
-                            }
-                            errors++;
-                        }
-                    }
-                    if (data91.crv !== undefined && func0.call(data91, "crv")) {
-                        if (typeof data91.crv !== "string") {
-                            const err250 = { instancePath: instancePath + "/cnf/jwk/crv", schemaPath: "#/properties/cnf/properties/jwk/properties/crv/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+                            const err250 = { instancePath: instancePath + "/cnf/jwk/kty", schemaPath: "#/properties/cnf/properties/jwk/properties/kty/type", keyword: "type", params: { type: "string" }, message: "must be string" };
                             if (vErrors === null) {
                                 vErrors = [err250];
                             }
@@ -3487,9 +3491,9 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             errors++;
                         }
                     }
-                    if (data91.x !== undefined && func0.call(data91, "x")) {
-                        if (typeof data91.x !== "string") {
-                            const err251 = { instancePath: instancePath + "/cnf/jwk/x", schemaPath: "#/properties/cnf/properties/jwk/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+                    if (data91.crv !== undefined && func0.call(data91, "crv")) {
+                        if (typeof data91.crv !== "string") {
+                            const err251 = { instancePath: instancePath + "/cnf/jwk/crv", schemaPath: "#/properties/cnf/properties/jwk/properties/crv/type", keyword: "type", params: { type: "string" }, message: "must be string" };
                             if (vErrors === null) {
                                 vErrors = [err251];
                             }
@@ -3499,9 +3503,9 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             errors++;
                         }
                     }
-                    if (data91.y !== undefined && func0.call(data91, "y")) {
-                        if (typeof data91.y !== "string") {
-                            const err252 = { instancePath: instancePath + "/cnf/jwk/y", schemaPath: "#/properties/cnf/properties/jwk/properties/y/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+                    if (data91.x !== undefined && func0.call(data91, "x")) {
+                        if (typeof data91.x !== "string") {
+                            const err252 = { instancePath: instancePath + "/cnf/jwk/x", schemaPath: "#/properties/cnf/properties/jwk/properties/x/type", keyword: "type", params: { type: "string" }, message: "must be string" };
                             if (vErrors === null) {
                                 vErrors = [err252];
                             }
@@ -3511,9 +3515,9 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             errors++;
                         }
                     }
-                    if (data91.n !== undefined && func0.call(data91, "n")) {
-                        if (typeof data91.n !== "string") {
-                            const err253 = { instancePath: instancePath + "/cnf/jwk/n", schemaPath: "#/properties/cnf/properties/jwk/properties/n/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+                    if (data91.y !== undefined && func0.call(data91, "y")) {
+                        if (typeof data91.y !== "string") {
+                            const err253 = { instancePath: instancePath + "/cnf/jwk/y", schemaPath: "#/properties/cnf/properties/jwk/properties/y/type", keyword: "type", params: { type: "string" }, message: "must be string" };
                             if (vErrors === null) {
                                 vErrors = [err253];
                             }
@@ -3523,9 +3527,9 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             errors++;
                         }
                     }
-                    if (data91.e !== undefined && func0.call(data91, "e")) {
-                        if (typeof data91.e !== "string") {
-                            const err254 = { instancePath: instancePath + "/cnf/jwk/e", schemaPath: "#/properties/cnf/properties/jwk/properties/e/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+                    if (data91.n !== undefined && func0.call(data91, "n")) {
+                        if (typeof data91.n !== "string") {
+                            const err254 = { instancePath: instancePath + "/cnf/jwk/n", schemaPath: "#/properties/cnf/properties/jwk/properties/n/type", keyword: "type", params: { type: "string" }, message: "must be string" };
                             if (vErrors === null) {
                                 vErrors = [err254];
                             }
@@ -3535,9 +3539,9 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             errors++;
                         }
                     }
-                    if (data91.kid !== undefined && func0.call(data91, "kid")) {
-                        if (typeof data91.kid !== "string") {
-                            const err255 = { instancePath: instancePath + "/cnf/jwk/kid", schemaPath: "#/properties/cnf/properties/jwk/properties/kid/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+                    if (data91.e !== undefined && func0.call(data91, "e")) {
+                        if (typeof data91.e !== "string") {
+                            const err255 = { instancePath: instancePath + "/cnf/jwk/e", schemaPath: "#/properties/cnf/properties/jwk/properties/e/type", keyword: "type", params: { type: "string" }, message: "must be string" };
                             if (vErrors === null) {
                                 vErrors = [err255];
                             }
@@ -3547,26 +3551,38 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
                             errors++;
                         }
                     }
+                    if (data91.kid !== undefined && func0.call(data91, "kid")) {
+                        if (typeof data91.kid !== "string") {
+                            const err256 = { instancePath: instancePath + "/cnf/jwk/kid", schemaPath: "#/properties/cnf/properties/jwk/properties/kid/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+                            if (vErrors === null) {
+                                vErrors = [err256];
+                            }
+                            else {
+                                vErrors.push(err256);
+                            }
+                            errors++;
+                        }
+                    }
                 }
                 else {
-                    const err256 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/type", keyword: "type", params: { type: "object" }, message: "must be object" };
+                    const err257 = { instancePath: instancePath + "/cnf/jwk", schemaPath: "#/properties/cnf/properties/jwk/type", keyword: "type", params: { type: "object" }, message: "must be object" };
                     if (vErrors === null) {
-                        vErrors = [err256];
+                        vErrors = [err257];
                     }
                     else {
-                        vErrors.push(err256);
+                        vErrors.push(err257);
                     }
                     errors++;
                 }
             }
         }
         else {
-            const err257 = { instancePath: instancePath + "/cnf", schemaPath: "#/properties/cnf/type", keyword: "type", params: { type: "object" }, message: "must be object" };
+            const err258 = { instancePath: instancePath + "/cnf", schemaPath: "#/properties/cnf/type", keyword: "type", params: { type: "object" }, message: "must be object" };
             if (vErrors === null) {
-                vErrors = [err257];
+                vErrors = [err258];
             }
             else {
-                vErrors.push(err257);
+                vErrors.push(err258);
             }
             errors++;
         }
@@ -3575,41 +3591,41 @@ function validate20(data, { instancePath = "", parentData, parentDataProperty, r
         let data103 = data.signature;
         if (typeof data103 === "string") {
             if (!pattern20.test(data103)) {
-                const err258 = { instancePath: instancePath + "/signature", schemaPath: "#/properties/signature/pattern", keyword: "pattern", params: { pattern: "^(?:[A-Za-z0-9_-]{1,85}|[A-Za-z0-9_-]{85}[AQgw]|[A-Za-z0-9_-]{87,})$" }, message: "must match pattern \"" + "^(?:[A-Za-z0-9_-]{1,85}|[A-Za-z0-9_-]{85}[AQgw]|[A-Za-z0-9_-]{87,})$" + "\"" };
+                const err259 = { instancePath: instancePath + "/signature", schemaPath: "#/properties/signature/pattern", keyword: "pattern", params: { pattern: "^(?:[A-Za-z0-9_-]{1,85}|[A-Za-z0-9_-]{85}[AQgw]|[A-Za-z0-9_-]{87,})$" }, message: "must match pattern \"" + "^(?:[A-Za-z0-9_-]{1,85}|[A-Za-z0-9_-]{85}[AQgw]|[A-Za-z0-9_-]{87,})$" + "\"" };
                 if (vErrors === null) {
-                    vErrors = [err258];
+                    vErrors = [err259];
                 }
                 else {
-                    vErrors.push(err258);
+                    vErrors.push(err259);
                 }
                 errors++;
             }
         }
         else {
-            const err259 = { instancePath: instancePath + "/signature", schemaPath: "#/properties/signature/type", keyword: "type", params: { type: "string" }, message: "must be string" };
+            const err260 = { instancePath: instancePath + "/signature", schemaPath: "#/properties/signature/type", keyword: "type", params: { type: "string" }, message: "must be string" };
             if (vErrors === null) {
-                vErrors = [err259];
+                vErrors = [err260];
             }
             else {
-                vErrors.push(err259);
+                vErrors.push(err260);
             }
             errors++;
         }
     }
 }
 else {
-    const err260 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object" };
+    const err261 = { instancePath, schemaPath: "#/type", keyword: "type", params: { type: "object" }, message: "must be object" };
     if (vErrors === null) {
-        vErrors = [err260];
+        vErrors = [err261];
     }
     else {
-        vErrors.push(err260);
+        vErrors.push(err261);
     }
     errors++;
 } validate20.errors = vErrors; return errors === 0; }
 validate20.evaluated = { "props": true, "dynamicProps": false, "dynamicItems": false };
 export const validateBundle = validate23;
-const schema33 = { "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://agentrust-io.com/schema/trace-revocation-bundle-v1.json", "title": "TRACE Revocation Bundle", "description": "A signed, cacheable set of TraceRevocation/1.0 statements with an explicit validity horizon. Spec trace-v0.2 section 3.2.3. The bundle exists so revocation does not require a callback at verification time: a verifier offline states what it checked against rather than skipping the check silently.", "type": "object", "required": ["type", "log_id", "issued_at", "valid_until", "statements", "bundle_key_id", "sig"], "additionalProperties": false, "properties": { "type": { "type": "string", "const": "TraceRevocationBundle/1.0" }, "log_id": { "type": "string", "minLength": 1, "description": "The transparency log every statement in this bundle refers to. One log per bundle, so an entry-ID comparison can never be made across logs by accident." }, "issued_at": { "type": "integer", "minimum": 1700000000, "maximum": 9007199254740991, "description": "When the bundle was assembled, Unix epoch seconds." }, "valid_until": { "type": "integer", "minimum": 1700000000, "maximum": 9007199254740991, "description": "The horizon this bundle may be relied on to. Past it, a verifier reports the record as unverified for revocation rather than verified: an expired bundle is not evidence a key is still trusted, and spec section 3.2.3 forbids reporting it as an affirming appraisal." }, "statements": { "type": "array", "description": "The revocation statements. An empty array is meaningful and legitimate: it asserts that as of issued_at the issuer knew of no revoked keys on this log, which is different from having no bundle at all.", "items": { "$ref": "https://agentrust-io.com/schema/trace-revocation-v1.json" } }, "bundle_key_id": { "type": "string", "minLength": 1, "description": "The key signing this bundle. The bundle signature authenticates the set and its horizon; each statement inside stays independently signed, so a bundle assembler cannot add a revocation it was not authorised to issue." }, "sig": { "type": "object", "required": ["alg", "value"], "additionalProperties": false, "description": "Signature over the RFC 8785 canonical form of this object with `sig` absent.", "properties": { "alg": { "type": "string", "enum": ["ed25519", "ES256", "ES384"] }, "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "description": "base64url, no padding." } } } } };
+const schema33 = { "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://agentrust-io.com/schema/trace-revocation-bundle-v1.json", "title": "TRACE Revocation Bundle", "description": "A signed, cacheable set of TraceRevocation/1.0 statements with an explicit validity horizon. Spec trace-v0.2 section 3.2.3. The bundle exists so revocation does not require a callback at verification time: a verifier offline states what it checked against rather than skipping the check silently.", "type": "object", "required": ["type", "log_id", "issued_at", "valid_until", "statements", "bundle_key_id", "sig"], "additionalProperties": false, "properties": { "type": { "type": "string", "const": "TraceRevocationBundle/1.0" }, "log_id": { "type": "string", "minLength": 1, "description": "The transparency log every statement in this bundle refers to. One log per bundle, so an entry-ID comparison can never be made across logs by accident." }, "issued_at": { "type": "integer", "minimum": 1700000000, "maximum": 9007199254740991, "description": "When the bundle was assembled, Unix epoch seconds." }, "valid_until": { "type": "integer", "minimum": 1700000000, "maximum": 9007199254740991, "description": "The horizon this bundle may be relied on to. Past it, a verifier reports the record as unverified for revocation rather than verified: an expired bundle is not evidence a key is still trusted, and spec section 3.2.3 forbids reporting it as an affirming appraisal." }, "statements": { "type": "array", "description": "The revocation statements. An empty array is meaningful and legitimate: it asserts that as of issued_at the issuer knew of no revoked keys on this log, which is different from having no bundle at all.", "items": { "$ref": "https://agentrust-io.com/schema/trace-revocation-v1.json" } }, "bundle_key_id": { "type": "string", "minLength": 1, "description": "The key signing this bundle. The bundle signature authenticates the set and its horizon; each statement inside stays independently signed, so a bundle assembler cannot add a revocation it was not authorised to issue." }, "sig": { "type": "object", "required": ["alg", "value"], "additionalProperties": false, "description": "Signature over the RFC 8785 canonical form of this object with `sig` absent.", "properties": { "alg": { "type": "string", "enum": ["ed25519", "ES256", "ES384"] }, "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "description": "base64url, no padding. For ES256 and ES384, the fixed-width IEEE P1363 raw r || s concatenation (64 bytes for ES256, 96 bytes for ES384)." } } } } };
 const schema34 = { "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://agentrust-io.com/schema/trace-revocation-v1.json", "title": "TRACE Revocation Statement", "description": "A TraceRevocation/1.0 statement withdrawing a record-signing key from a transparency-log entry onward. Spec trace-v0.2 section 3.2.3. The boundary is a log entry ID rather than a timestamp: a compromised record-signing key also signs the iat it would be judged against, so any time-anchored rule is defeated by backdating.", "type": "object", "required": ["type", "compromised_key_id", "last_valid_entry_id", "log_id", "revocation_key_id", "sig"], "additionalProperties": false, "properties": { "type": { "type": "string", "const": "TraceRevocation/1.0", "description": "Claim type identifier." }, "compromised_key_id": { "type": "string", "minLength": 1, "description": "The revoked record-signing key, as an RFC 7638 JWK thumbprint or a kid. Matching on either identifier rejects the record." }, "last_valid_entry_id": { "type": "string", "minLength": 1, "description": "The highest log entry ID at which this key's records remain valid. A record whose inclusion entry ID is less than or equal to this value is unaffected; a greater one is rejected." }, "revoked_after_entry": { "type": "string", "minLength": 1, "description": "The next entry ID after last_valid_entry_id. Redundant by construction and carried so a reader does not have to know the log's successor function to see where the boundary falls." }, "log_id": { "type": "string", "minLength": 1, "description": "The transparency log the entry IDs refer to. Entry IDs from a different log are not comparable and must not satisfy the verifier rule." }, "reason": { "type": "string", "description": "Why the key was revoked. Free text: the verifier rule does not branch on it, and constraining it would invite a false sense that it is machine-actionable.", "examples": ["key compromise", "superseded", "operator request"] }, "revoked_at": { "type": "integer", "minimum": 1700000000, "maximum": 9007199254740991, "description": "When the revocation was issued, Unix epoch seconds. Informational only. It is deliberately NOT the boundary: see the description of this schema." }, "revocation_key_id": { "type": "string", "minLength": 1, "description": "The key signing this statement. Spec section 3.2.3 requires it to sit above compromised_key_id in the section 3.2.1 hierarchy, or to be an organisational recovery key with an independent compromise domain. A statement the compromised key could sign for itself is a tool for whoever stole it." }, "sig": { "type": "object", "required": ["alg", "value"], "additionalProperties": false, "description": "Signature over the RFC 8785 canonical form of this object with `sig` absent.", "properties": { "alg": { "type": "string", "enum": ["ed25519", "ES256", "ES384"], "description": "Signature algorithm, matching the set spec section 3.2.1 allows." }, "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "description": "base64url, no padding." } } } } };
 const pattern21 = new RegExp("^[A-Za-z0-9_-]+$", "u");
 function validate23(data, { instancePath = "", parentData, parentDataProperty, rootData = data, dynamicAnchors = {} } = {}) { /*# sourceURL="https://agentrust-io.com/schema/trace-revocation-bundle-v1.json" */ ; let vErrors = null; let errors = 0; const evaluated0 = validate23.evaluated; if (evaluated0.dynamicProps) {

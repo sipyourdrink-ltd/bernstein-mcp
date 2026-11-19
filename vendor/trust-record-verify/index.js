@@ -9,10 +9,12 @@
  * Start at `verifyRecord`.
  */
 export { decodeBase64url, encodeBase64url } from "./base64url.js";
+export { checkCitations, SURFACES, } from "./citation.js";
 export { DELEGATION_DIGEST_ALGORITHMS, parentRecordHash, verifyDelegationLink, } from "./delegation.js";
 export { FAILURE_CODES, TraceVerificationError } from "./errors.js";
 export { canonicalize, canonicalJson, JCS_SAFE_INTEGER } from "./jcs.js";
 export { jwkThumbprint, keyIdentifiers } from "./jwk.js";
+export { checkPlatformMeasurement, LAYER_STATUSES, NOT_ATTEMPTED, } from "./platform.js";
 export { bundleDigest, checkRevocationBundle, NO_CHECK, } from "./revocation.js";
 export { bundleSchemaViolations, recordSchemaViolations, SCHEMA_DIGESTS, } from "./schema.js";
 export { ACCEPTED_PROFILES, TRACE_PROFILE_V0_2, verifyRecord, } from "./verify.js";

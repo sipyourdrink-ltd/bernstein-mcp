@@ -9,10 +9,12 @@
  * Start at `verifyRecord`.
  */
 export { decodeBase64url, encodeBase64url } from "./base64url.js";
+export { checkCitations, SURFACES, type CitationCause, type CitationCheck, type CitationOutcome, type CitationResolver, } from "./citation.js";
 export { DELEGATION_DIGEST_ALGORITHMS, parentRecordHash, verifyDelegationLink, type DelegationDigestAlgorithm, type DelegationLink, type DelegationLinkOptions, } from "./delegation.js";
 export { FAILURE_CODES, TraceVerificationError, type FailureCode } from "./errors.js";
 export { canonicalize, canonicalJson, JCS_SAFE_INTEGER } from "./jcs.js";
 export { jwkThumbprint, keyIdentifiers } from "./jwk.js";
+export { checkPlatformMeasurement, LAYER_STATUSES, NOT_ATTEMPTED, type LayerCause, type LayerCheck, type LayerOutcome, type LayerStatus, type PlatformAppraiser, type PlatformCause, type PlatformMeasurementCheck, type PlatformOutcome, } from "./platform.js";
 export { bundleDigest, checkRevocationBundle, NO_CHECK, type BundleCheckOptions, type RevocationCause, type RevocationCheck, type RevocationOutcome, } from "./revocation.js";
 export { bundleSchemaViolations, recordSchemaViolations, SCHEMA_DIGESTS, type SchemaViolation, } from "./schema.js";
 export { ACCEPTED_PROFILES, TRACE_PROFILE_V0_2, verifyRecord, type RevocationStore, type VerificationResult, type VerifyOptions, } from "./verify.js";

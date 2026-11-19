@@ -37,10 +37,12 @@
  *       `signature_invalid`.
  */
 import { decodeBase64url } from "./base64url.js";
+import { checkCitations } from "./citation.js";
 import { importEd25519, verifyEd25519 } from "./crypto.js";
 import { fail, TraceVerificationError } from "./errors.js";
 import { canonicalize } from "./jcs.js";
 import { keyIdentifiers } from "./jwk.js";
+import { checkPlatformMeasurement, } from "./platform.js";
 import { checkRevocationBundle, NO_CHECK } from "./revocation.js";
 import { recordSchemaViolations } from "./schema.js";
 import { isPlainObject, isSet, own, timingSafeEqual } from "./text.js";
@@ -94,6 +96,18 @@ function settings(options) {
     if (bundleKeys !== undefined && bundleKeys !== null && !Array.isArray(bundleKeys)) {
         fail("invalid_argument", "trustedBundleKeys must be an array of JWK objects");
     }
+    const citationResolver = own(o, "citationResolver");
+    if (citationResolver !== undefined &&
+        citationResolver !== null &&
+        typeof citationResolver !== "function") {
+        fail("invalid_argument", "citationResolver must be a function or null");
+    }
+    const platformAppraiser = own(o, "platformAppraiser");
+    if (platformAppraiser !== undefined &&
+        platformAppraiser !== null &&
+        typeof platformAppraiser !== "function") {
+        fail("invalid_argument", "platformAppraiser must be a function or null");
+    }
     const bundle = own(o, "revocationBundle");
     return {
         trustedKey: own(o, "trustedKey"),
@@ -106,6 +120,8 @@ function settings(options) {
         revocationBundle: bundle === null ? undefined : bundle,
         trustedBundleKeys: (bundleKeys ?? []),
         maxBundleAgeSeconds: seconds("maxBundleAgeSeconds", own(o, "maxBundleAgeSeconds"), DEFAULT_MAX_BUNDLE_AGE_SECONDS),
+        citationResolver: (citationResolver ?? null),
+        platformAppraiser: (platformAppraiser ?? null),
     };
 }
 async function checkStore(identifiers, store) {
@@ -272,11 +288,15 @@ export async function verifyRecord(record, options) {
     if (!(await verifyEd25519(trustedKey, signature, message))) {
         fail("signature_invalid", "the signature does not verify over the record's RFC 8785 form");
     }
+    const citations = await checkCitations(record, s.citationResolver);
+    const platformMeasurement = await checkPlatformMeasurement(record, s.platformAppraiser);
     return {
         profile,
         acceptedProfiles: ACCEPTED_PROFILES,
         revocation,
         trustedKeyThumbprint: trustedIds[0],
         trustedKeySource,
+        citations,
+        platformMeasurement,
     };
 }

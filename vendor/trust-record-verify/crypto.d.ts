@@ -18,3 +18,9 @@ export declare function hex(bytes: Uint8Array): string;
 export declare function importEd25519(jwk: unknown, role: "trusted_key" | "cnf_key" | "bundle_key"): Promise<CryptoKey>;
 /** Ed25519 verification. Any refusal by the platform counts as a signature that does not verify. */
 export declare function verifyEd25519(key: CryptoKey, signature: Uint8Array, message: Uint8Array): Promise<boolean>;
+/**
+ * Import an ECDSA public key on P-256 or P-384 from a JWK, refusing every other key type or curve.
+ */
+export declare function importEcdsa(jwk: unknown, curve: "P-256" | "P-384", role: "bundle_key"): Promise<CryptoKey>;
+/** ECDSA (IEEE P1363 r || s) verification. Any refusal by the platform counts as a signature that does not verify. */
+export declare function verifyEcdsa(key: CryptoKey, hash: "SHA-256" | "SHA-384", signature: Uint8Array, message: Uint8Array): Promise<boolean>;

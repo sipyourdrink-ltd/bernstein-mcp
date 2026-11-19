@@ -36,6 +36,8 @@
  *       `signature` absent (section 3.2.2): `canonicalization_failed`,
  *       `signature_invalid`.
  */
+import { type CitationCheck, type CitationResolver } from "./citation.js";
+import { type PlatformAppraiser, type PlatformMeasurementCheck } from "./platform.js";
 import { type RevocationCheck } from "./revocation.js";
 /** The profile URI this build implements, and the only one `verifyRecord` accepts. */
 export declare const TRACE_PROFILE_V0_2 = "tag:agentrust-io.com,2026:trace-v0.2";
@@ -78,6 +80,16 @@ export interface VerifyOptions {
     readonly trustedBundleKeys?: readonly unknown[];
     /** Maximum bundle age in seconds, measured from `issued_at`. Default 86400. */
     readonly maxBundleAgeSeconds?: number;
+    /**
+     * Caller-supplied citation resolver (section 3.1.2). Called after signature
+     * verification for `appraisal.policy_ref`, `runtime.rim_uri`, and `model.aibom_uri`.
+     */
+    readonly citationResolver?: CitationResolver | null;
+    /**
+     * Caller-supplied platform measurement appraiser. Called after signature
+     * verification with a deep copy of `record.runtime`.
+     */
+    readonly platformAppraiser?: PlatformAppraiser | null;
 }
 export interface VerificationResult {
     /** The `eat_profile` the record carries, which this verifier accepted. */
@@ -90,6 +102,10 @@ export interface VerificationResult {
     readonly trustedKeyThumbprint: string;
     /** `caller` for a pinned key, `record` when `allowEmbeddedKey` trusted `cnf.jwk`. */
     readonly trustedKeySource: "caller" | "record";
+    /** Per-surface citation resolution outcomes (section 3.1.2). */
+    readonly citations: Readonly<Record<string, CitationCheck>>;
+    /** What the platform measurement appraiser reported about `runtime.measurement`. */
+    readonly platformMeasurement: PlatformMeasurementCheck;
 }
 /**
  * Verify a signed TRACE v0.2 Trust Record.

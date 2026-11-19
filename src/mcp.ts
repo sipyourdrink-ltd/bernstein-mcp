@@ -357,7 +357,7 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
         trusted_key_thumbprint: z.string().nullable(),
         trusted_key_source: z.enum(["caller", "record"]).nullable(),
         revocation_outcome: z.string().nullable(),
-        implementation: z.literal("agentrust-io/trace-spec trust-record-verify@404c278"),
+        implementation: z.literal("agentrust-io/trace-spec trust-record-verify@1ea0657"),
         note: z.string(),
       },
     },
@@ -367,7 +367,7 @@ export function registerTools(server: McpServer, opts: ServerOptions = { signer:
         trusted_key_thumbprint: null,
         trusted_key_source: null,
         revocation_outcome: null,
-        implementation: "agentrust-io/trace-spec trust-record-verify@404c278" as const,
+        implementation: "agentrust-io/trace-spec trust-record-verify@1ea0657" as const,
         note: "no_check_performed and unverified_for_revocation are not affirming revocation appraisals. A key source of record proves internal consistency, not who produced the record.",
       };
       const finish = (out: Record<string, unknown> & { verdict: "valid" | "invalid" | "unverifiable" }) => {
